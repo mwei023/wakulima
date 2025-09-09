@@ -3,6 +3,7 @@ import { useStore } from '@/store/useStore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { 
   ShoppingCart, 
   Package, 
@@ -63,6 +64,7 @@ export const Layout = () => {
             
             {/* User Info */}
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               <div className="text-right">
                 <p className="text-sm font-medium">{currentUser?.full_name}</p>
                 <p className="text-xs text-muted-foreground capitalize">{currentUser?.role}</p>
