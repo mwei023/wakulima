@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Product, Customer, Sale, CartItem, User, SyncStatus, PendingOrder } from '@/types';
 import { mockProducts, mockCustomers, mockPendingOrders, mockUsers } from '@/data/mockData';
+import { offlineManager } from '@/lib/db';
 
 interface StoreState {
   // Auth
@@ -48,11 +49,28 @@ interface StoreState {
   
   // Sync actions
   setSyncStatus: (status: Partial<SyncStatus>) => void;
+  forceSync: () => Promise<void>;
+  
+  // Category actions
+  addCategory: (categoryName: string) => void;
+  removeCategory: (categoryName: string) => void;
 }
 
 export const useStore = create<StoreState>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      // Initialize offline manager
+      offlineManager.addStatusListener((isOnline) => {
+        set({ syncStatus: { ...get().syncStatus, isOnline } });
+        if (isOnline) {
+          // Update pending sales count when coming online
+          offlineManager.getPendingSalesCount().then(count => {
+            set({ syncStatus: { ...get().syncStatus, pendingSales: count } });
+          });
+        }
+      });
+
+      return {
       // Initial state
       currentUser: null,
       isAuthenticated: false,
@@ -63,7 +81,7 @@ export const useStore = create<StoreState>()(
       cart: [],
       selectedCustomer: mockCustomers[0], // Walk-in customer by default
       syncStatus: {
-        isOnline: navigator.onLine,
+        isOnline: offlineManager.getOnlineStatus(),
         pendingSales: 0,
         lastSync: null
       },
@@ -193,14 +211,25 @@ export const useStore = create<StoreState>()(
           );
         }
         
+        // Queue sale for offline sync if needed
+        if (!offlineManager.getOnlineStatus()) {
+          offlineManager.queueSale(sale);
+        }
+        
         set({
           sales: [...get().sales, sale],
           products: updatedProducts,
           customers: updatedCustomers,
           cart: [],
           selectedCustomer: mockCustomers[0],
-          syncStatus: { ...get().syncStatus, pendingSales: get().syncStatus.pendingSales + 1 }
+          syncStatus: { 
+            ...get().syncStatus, 
+            pendingSales: offlineManager.getOnlineStatus() ? get().syncStatus.pendingSales : get().syncStatus.pendingSales + 1
+          }
         });
+        
+        // Cache updated data offline
+        offlineManager.cacheData(updatedProducts, updatedCustomers, [...get().sales, sale], get().syncStatus);
         
         return null; // Success
       },
@@ -306,8 +335,37 @@ export const useStore = create<StoreState>()(
       // Sync actions
       setSyncStatus: (status: Partial<SyncStatus>) => {
         set({ syncStatus: { ...get().syncStatus, ...status } });
+      },
+      
+      forceSync: async () => {
+        try {
+          await offlineManager.forcSync();
+          const pendingCount = await offlineManager.getPendingSalesCount();
+          set({ 
+            syncStatus: { 
+              ...get().syncStatus, 
+              pendingSales: pendingCount,
+              lastSync: new Date().toISOString()
+            } 
+          });
+        } catch (error) {
+          console.error('Sync failed:', error);
+          throw error;
+        }
+      },
+      
+      // Category actions
+      addCategory: (categoryName: string) => {
+        // Categories are managed through products, no separate storage needed
+        // This is a placeholder for future category-specific logic
+      },
+      
+      removeCategory: (categoryName: string) => {
+        // Categories are managed through products, no separate storage needed
+        // This is a placeholder for future category-specific logic
       }
-    }),
+      };
+    },
     {
       name: 'wakulima-agrovet-store',
       partialize: (state) => ({

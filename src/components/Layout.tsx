@@ -10,7 +10,7 @@ import {
   Users, 
   MessageSquare, 
   BarChart3, 
-  Settings,
+  Settings as SettingsIcon,
   Wifi,
   WifiOff,
   RefreshCw,
@@ -21,6 +21,7 @@ import { InventoryView } from '@/components/Inventory/InventoryView';
 import { CustomersView } from '@/components/Customers/CustomersView';
 import { OrdersView } from '@/components/Orders/OrdersView';
 import { ReportsView } from '@/components/Reports/ReportsView';
+import { Settings } from '@/components/Settings/Settings';
 
 export const Layout = () => {
   const { currentUser, logout, syncStatus } = useStore();
@@ -85,7 +86,7 @@ export const Layout = () => {
       {/* Main Content */}
       <div className="container mx-auto p-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-6">
             <TabsTrigger value="pos" className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
               <span className="hidden sm:inline">POS</span>
@@ -105,6 +106,10 @@ export const Layout = () => {
             <TabsTrigger value="reports" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Reports</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <SettingsIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Settings</span>
             </TabsTrigger>
           </TabsList>
 
@@ -126,6 +131,10 @@ export const Layout = () => {
           
           <TabsContent value="reports" className="mt-6">
             <ReportsView />
+          </TabsContent>
+          
+          <TabsContent value="settings" className="mt-6">
+            <Settings />
           </TabsContent>
         </Tabs>
       </div>
