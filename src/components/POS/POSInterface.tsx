@@ -1,16 +1,13 @@
 import { useState } from 'react';
-import { useStore } from '@/store/useStore';
+import { Search, Plus, Trash2, CreditCard, Banknote, Smartphone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Search, Plus, Minus, Trash2, ShoppingCart, AlertTriangle, Zap } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { useStore } from '@/store/useStore';
 import { formatCurrency } from '@/lib/utils';
-import { QuickActions } from './QuickActions';
-import { QuickQuantity } from './QuickQuantity';
+import { toast } from '@/hooks/use-toast';
 
 export const POSInterface = () => {
   const {
@@ -28,49 +25,36 @@ export const POSInterface = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'mpesa' | 'credit'>('cash');
-  const [selectedProductForQuantity, setSelectedProductForQuantity] = useState<string | null>(null);
 
-  // Predictive search - show results after 1 character
   const filteredProducts = products.filter(product =>
-    searchTerm.length >= 1 && (
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  // Top products for quick access (most expensive or most sold)
-  const topProducts = products.slice().sort((a, b) => b.selling_price - a.selling_price);
 
   const cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const handleAddToCart = (productId: string, quantity: number = 1) => {
-    const product = products.find(p => p.id === productId);
-    if (product) {
-      if (product.stock_quantity <= 0) {
-        toast({
-          title: "Out of Stock",
-          description: `${product.name} is out of stock`,
-          variant: "destructive"
-        });
-        return;
-      }
-      addToCart(product, quantity);
-      // Clear search after adding to speed up workflow
-      if (searchTerm) {
-        setSearchTerm('');
-      }
+  const addProductToCart = (product: any) => {
+    if (product.stock_quantity <= 0) {
+      toast({
+        title: "Out of Stock",
+        description: `${product.name} is out of stock`,
+        variant: "destructive"
+      });
+      return;
     }
+    addToCart(product, 1);
+    setSearchTerm('');
   };
 
-  const handleQuickQuantitySelect = (productId: string, quantity: number) => {
-    handleAddToCart(productId, quantity);
-    setSelectedProductForQuantity(null);
-  };
-
-  const handleQuantityChange = (productId: string, quantity: number) => {
+  const updateQuantity = (productId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    
     const product = products.find(p => p.id === productId);
-    if (product && quantity > product.stock_quantity) {
+    if (product && newQuantity > product.stock_quantity) {
       toast({
         title: "Insufficient Stock",
         description: `Only ${product.stock_quantity} units available`,
@@ -78,17 +62,49 @@ export const POSInterface = () => {
       });
       return;
     }
-    updateCartQuantity(productId, quantity);
+    updateCartQuantity(productId, newQuantity);
   };
 
-  const handleCompleteSale = () => {
+  const calculateProfit = () => {
+    return cart.reduce((sum, item) => {
+      const product = products.find(p => p.id === item.product.id);
+      if (product) {
+        return sum + ((item.product.selling_price - product.cost_price) * item.quantity);
+      }
+      return sum;
+    }, 0);
+  };
+
+  const processSale = () => {
     if (cart.length === 0) {
       toast({
-        title: "Empty Cart",
-        description: "Add items to cart before completing sale",
+        title: "Error",
+        description: "Cart is empty",
         variant: "destructive"
       });
       return;
+    }
+
+    // Check credit limit if paying with credit
+    if (paymentMethod === 'credit' && selectedCustomer) {
+      if (selectedCustomer.id === 'walk-in') {
+        toast({
+          title: "Error", 
+          description: "Credit sales require a registered customer",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const newBalance = selectedCustomer.outstanding_balance + cartTotal;
+      if (newBalance > selectedCustomer.credit_limit) {
+        toast({
+          title: "Credit Limit Exceeded",
+          description: `Customer limit: ${formatCurrency(selectedCustomer.credit_limit)}`,
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     const error = completeSale(paymentMethod);
@@ -102,288 +118,182 @@ export const POSInterface = () => {
       toast({
         title: "Sale Completed",
         description: `Sale of ${formatCurrency(cartTotal)} completed successfully`,
-        variant: "default"
       });
       setPaymentMethod('cash');
     }
   };
 
-  const getStockBadgeVariant = (product: any) => {
-    if (product.stock_quantity <= 0) return 'destructive';
-    if (product.stock_quantity <= product.reorder_level) return 'warning';
-    return 'secondary';
-  };
-
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      {/* Product Search & List */}
-      <div className="lg:col-span-2 space-y-4">
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Zap className="h-4 w-4" />
-              Lightning Fast
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <QuickActions 
-              topProducts={topProducts} 
-              onAddToCart={(productId) => handleAddToCart(productId)} 
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5" />
-              Product Search
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Input
-              placeholder="Type 'Dairy' for instant results..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="mb-4 text-lg h-12"
-              autoFocus
-            />
-            
-            {searchTerm && (
-              <div className="grid gap-2 max-h-80 overflow-y-auto">
-                {filteredProducts.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">
-                    No products found for "{searchTerm}"
-                  </p>
-                ) : (
-                  filteredProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-base">{product.name}</h4>
-                          <Badge variant={getStockBadgeVariant(product)} className="text-xs">
-                            {product.stock_quantity} {product.unit}
-                          </Badge>
-                          {product.stock_quantity <= product.reorder_level && (
-                            <AlertTriangle className="h-4 w-4 text-warning" />
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{product.category}</p>
-                        <p className="font-semibold text-primary text-lg">{formatCurrency(product.selling_price)}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {selectedProductForQuantity === product.id ? (
-                          <div className="flex items-center gap-2">
-                            <QuickQuantity 
-                              onQuantitySelect={(qty) => handleQuickQuantitySelect(product.id, qty)} 
-                            />
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setSelectedProductForQuantity(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setSelectedProductForQuantity(product.id)}
-                              disabled={product.stock_quantity <= 0}
-                            >
-                              Qty
-                            </Button>
-                            <Button
-                              size="lg"
-                              onClick={() => handleAddToCart(product.id)}
-                              disabled={product.stock_quantity <= 0}
-                              className="h-12 px-6"
-                            >
-                              <Plus className="h-5 w-5 mr-2" />
-                              Add
-                            </Button>
-                          </>
-                        )}
-                      </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+      {/* Product Search & Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Product Search
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="text-lg"
+          />
+          
+          <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
+            {filteredProducts.map((product) => (
+              <Card key={product.id} className="cursor-pointer hover:bg-muted/50" onClick={() => addProductToCart(product)}>
+                <CardContent className="p-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium">{product.name}</h4>
+                      <p className="text-sm text-muted-foreground">{product.category}</p>
+                      <p className="font-bold text-primary">{formatCurrency(product.selling_price)}</p>
                     </div>
-                  ))
-                )}
-              </div>
-            )}
-            
-            {!searchTerm && (
-              <div className="text-center py-8">
-                <Search className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                <p className="text-muted-foreground">
-                  Start typing to search products instantly
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Try "Dairy", "Feed", or "Fertilizer"
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                    <div className="text-right">
+                      <Badge variant={product.stock_quantity <= product.reorder_level ? "destructive" : "secondary"}>
+                        {product.stock_quantity} {product.unit}s
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Cart & Checkout */}
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5" />
-                Cart ({cartItemCount})
-              </span>
-              {cart.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearCart}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>Cart ({cartItemCount} items)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Customer Selection */}
+          <div>
+            <label className="text-sm font-medium">Customer</label>
+            <Select value={selectedCustomer?.id || ''} onValueChange={(value) => {
+              const customer = customers.find(c => c.id === value);
+              setSelectedCustomer(customer || null);
+            }}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    <div>
+                      <div className="font-medium">{customer.name}</div>
+                      {customer.id !== 'walk-in' && (
+                        <div className="text-xs text-muted-foreground">
+                          Balance: {formatCurrency(customer.outstanding_balance)} / 
+                          Limit: {formatCurrency(customer.credit_limit)}
+                        </div>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Cart Items */}
+          <div className="space-y-2 max-h-64 overflow-y-auto">
             {cart.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">Cart is empty</p>
             ) : (
-              <div className="space-y-3">
-                {cart.map((item) => (
-                  <div key={item.product.id} className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{item.product.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatCurrency(item.product.selling_price)} each
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleQuantityChange(item.product.id, item.quantity - 1)}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center text-sm">{item.quantity}</span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleQuantityChange(item.product.id, item.quantity + 1)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-sm">{formatCurrency(item.total)}</p>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => removeFromCart(item.product.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
+              cart.map((item) => (
+                <div key={item.product.id} className="flex items-center justify-between p-2 border rounded">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{item.product.name}</p>
+                    <p className="text-xs text-muted-foreground">{formatCurrency(item.product.selling_price)} each</p>
                   </div>
-                ))}
-              </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                    >
+                      -
+                    </Button>
+                    <span className="w-8 text-center">{item.quantity}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                    >
+                      +
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => removeFromCart(item.product.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="w-20 text-right font-medium">
+                    {formatCurrency(item.total)}
+                  </div>
+                </div>
+              ))
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Checkout */}
-        {cart.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Checkout</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Customer Selection */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">Customer</label>
-                <Select
-                  value={selectedCustomer?.id || ''}
-                  onValueChange={(customerId) => {
-                    const customer = customers.find(c => c.id === customerId);
-                    setSelectedCustomer(customer || null);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>{customer.name}</span>
-                          {customer.id !== 'walk-in' && customer.outstanding_balance > 0 && (
-                            <Badge variant="warning" className="ml-2">
-                              Owes {formatCurrency(customer.outstanding_balance)}
-                            </Badge>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {selectedCustomer && selectedCustomer.id !== 'walk-in' && (
-                  <div className="mt-2 p-2 bg-muted rounded text-sm">
-                    <p>Credit Limit: {formatCurrency(selectedCustomer.credit_limit)}</p>
-                    <p>Outstanding: {formatCurrency(selectedCustomer.outstanding_balance)}</p>
-                    <p>Available Credit: {formatCurrency(selectedCustomer.credit_limit - selectedCustomer.outstanding_balance)}</p>
-                  </div>
-                )}
-              </div>
-
+          {cart.length > 0 && (
+            <>
               {/* Payment Method */}
               <div>
-                <label className="text-sm font-medium mb-2 block">Payment Method</label>
-                <Select
-                  value={paymentMethod}
-                  onValueChange={(method) => setPaymentMethod(method as any)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="mpesa">M-Pesa</SelectItem>
-                    <SelectItem 
-                      value="credit" 
-                      disabled={!selectedCustomer || selectedCustomer.id === 'walk-in'}
-                    >
-                      Credit
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium">Payment Method</label>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    variant={paymentMethod === 'cash' ? 'default' : 'outline'}
+                    onClick={() => setPaymentMethod('cash')}
+                    className="flex-1"
+                  >
+                    <Banknote className="h-4 w-4 mr-1" />
+                    Cash
+                  </Button>
+                  <Button
+                    variant={paymentMethod === 'mpesa' ? 'default' : 'outline'}
+                    onClick={() => setPaymentMethod('mpesa')}
+                    className="flex-1"
+                  >
+                    <Smartphone className="h-4 w-4 mr-1" />
+                    M-Pesa
+                  </Button>
+                  <Button
+                    variant={paymentMethod === 'credit' ? 'default' : 'outline'}
+                    onClick={() => setPaymentMethod('credit')}
+                    className="flex-1"
+                  >
+                    <CreditCard className="h-4 w-4 mr-1" />
+                    Credit
+                  </Button>
+                </div>
               </div>
 
-              <Separator />
-              
-              {/* Total */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-lg font-semibold">
+              {/* Totals */}
+              <div className="border-t pt-4">
+                <div className="flex justify-between text-lg font-bold">
                   <span>Total:</span>
                   <span>{formatCurrency(cartTotal)}</span>
                 </div>
-                
-                <Button 
-                  className="w-full h-14 text-lg" 
-                  size="lg"
-                  onClick={handleCompleteSale}
-                >
-                  Complete Sale - {formatCurrency(cartTotal)}
-                </Button>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Est. Profit:</span>
+                  <span className="text-success">{formatCurrency(calculateProfit())}</span>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+
+              {/* Checkout Button */}
+              <Button onClick={processSale} className="w-full" size="lg">
+                Complete Sale - {formatCurrency(cartTotal)}
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

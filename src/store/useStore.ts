@@ -38,6 +38,7 @@ interface StoreState {
   
   // Inventory actions
   updateStock: (productId: string, newQuantity: number) => void;
+  addProduct: (product: Product) => void;
   
   // Customer actions
   addCustomer: (customer: Omit<Customer, 'id' | 'created_at'>) => void;
@@ -244,6 +245,10 @@ export const useStore = create<StoreState>()(
               : product
           )
         });
+      },
+
+      addProduct: (product: Product) => {
+        set({ products: [...get().products, product] });
       },
       
       // Customer actions
