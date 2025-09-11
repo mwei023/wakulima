@@ -70,7 +70,7 @@ export const InventoryView = () => {
     }
   };
 
-  const canEditStock = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin';
 
   return (
     <div className="p-6 space-y-6">
@@ -123,7 +123,7 @@ export const InventoryView = () => {
           </Select>
         </div>
         
-        {canEditStock && (
+        {isAdmin && (
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -135,7 +135,7 @@ export const InventoryView = () => {
               <DialogHeader>
                 <DialogTitle>Add New Product</DialogTitle>
               </DialogHeader>
-              <ProductForm onSubmit={handleAddProduct} />
+              <ProductForm onSubmit={handleAddProduct} isAdmin={isAdmin} />
             </DialogContent>
           </Dialog>
         )}
@@ -148,7 +148,7 @@ export const InventoryView = () => {
             <CardContent className="p-4">
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-semibold">{product.name}</h3>
-                {canEditStock && (
+                {isAdmin && (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -164,27 +164,31 @@ export const InventoryView = () => {
               
               <div className="space-y-2">
                 <Badge variant="outline">{product.category}</Badge>
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className={`grid gap-2 text-sm ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   <div>
                     <p className="text-muted-foreground">Selling Price</p>
                     <p className="font-medium">{formatCurrency(product.selling_price)}</p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Cost Price</p>
-                    <p className="font-medium">{formatCurrency(product.cost_price)}</p>
-                  </div>
+                  {isAdmin && (
+                    <div>
+                      <p className="text-muted-foreground">Cost Price</p>
+                      <p className="font-medium">{formatCurrency(product.cost_price)}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-muted-foreground">Stock</p>
                     <Badge variant={product.stock_quantity <= product.reorder_level ? "destructive" : "secondary"}>
                       {product.stock_quantity} {product.unit}s
                     </Badge>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Profit/Unit</p>
-                    <p className="font-medium text-success">
-                      {formatCurrency(product.selling_price - product.cost_price)}
-                    </p>
-                  </div>
+                  {isAdmin && (
+                    <div>
+                      <p className="text-muted-foreground">Profit/Unit</p>
+                      <p className="font-medium text-success">
+                        {formatCurrency(product.selling_price - product.cost_price)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -229,10 +233,12 @@ export const InventoryView = () => {
 
 const ProductForm = ({ 
   product, 
-  onSubmit 
+  onSubmit,
+  isAdmin = false
 }: { 
   product?: Product; 
-  onSubmit: (data: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => void; 
+  onSubmit: (data: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => void;
+  isAdmin?: boolean;
 }) => {
   const [formData, setFormData] = useState({
     name: product?.name || '',
@@ -283,16 +289,18 @@ const ProductForm = ({
           />
         </div>
         
-        <div>
-          <Label htmlFor="cost_price">Cost Price (KES)</Label>
-          <Input
-            id="cost_price"
-            type="number"
-            value={formData.cost_price}
-            onChange={(e) => setFormData({...formData, cost_price: Number(e.target.value)})}
-            required
-          />
-        </div>
+        {isAdmin && (
+          <div>
+            <Label htmlFor="cost_price">Cost Price (KES)</Label>
+            <Input
+              id="cost_price"
+              type="number"
+              value={formData.cost_price}
+              onChange={(e) => setFormData({...formData, cost_price: Number(e.target.value)})}
+              required
+            />
+          </div>
+        )}
         
         <div>
           <Label htmlFor="selling_price">Selling Price (KES)</Label>
@@ -316,16 +324,18 @@ const ProductForm = ({
           />
         </div>
         
-        <div>
-          <Label htmlFor="reorder_level">Reorder Level</Label>
-          <Input
-            id="reorder_level"
-            type="number"
-            value={formData.reorder_level}
-            onChange={(e) => setFormData({...formData, reorder_level: Number(e.target.value)})}
-            required
-          />
-        </div>
+        {isAdmin && (
+          <div>
+            <Label htmlFor="reorder_level">Reorder Level</Label>
+            <Input
+              id="reorder_level"
+              type="number"
+              value={formData.reorder_level}
+              onChange={(e) => setFormData({...formData, reorder_level: Number(e.target.value)})}
+              required
+            />
+          </div>
+        )}
       </div>
       
       <Button type="submit" className="w-full">
