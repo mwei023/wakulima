@@ -17,7 +17,7 @@ export const InventoryView = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [newStock, setNewStock] = useState<number>(0);
+  
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const categories = [...new Set(products.map(p => p.category))];
@@ -31,17 +31,24 @@ export const InventoryView = () => {
 
   const lowStockProducts = products.filter(p => p.stock_quantity <= p.reorder_level);
 
-  const handleUpdateStock = async () => {
+  const handleUpdateProduct = async (productData: Product) => {
     if (!editingProduct) return;
     
-    await updateStock(editingProduct.id, newStock);
-    setEditingProduct(null);
-    setNewStock(0);
-    
-    toast({
-      title: "Stock Updated",
-      description: `${editingProduct.name} stock updated to ${newStock}`,
-    });
+    try {
+      await addProduct(productData);
+      setEditingProduct(null);
+      
+      toast({
+        title: "Product Updated",
+        description: `${productData.name} has been updated`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update product",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleAddProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
@@ -152,10 +159,7 @@ export const InventoryView = () => {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => {
-                      setEditingProduct(product);
-                      setNewStock(product.stock_quantity);
-                    }}
+                    onClick={() => setEditingProduct(product)}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -196,35 +200,17 @@ export const InventoryView = () => {
         ))}
       </div>
 
-      {/* Edit Stock Dialog */}
+      {/* Edit Product Dialog */}
       <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Update Stock - {editingProduct?.name}</DialogTitle>
+            <DialogTitle>Edit Product</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="current-stock">Current Stock</Label>
-              <Input
-                id="current-stock"
-                value={`${editingProduct?.stock_quantity} ${editingProduct?.unit}s`}
-                disabled
-              />
-            </div>
-            <div>
-              <Label htmlFor="new-stock">New Stock Quantity</Label>
-              <Input
-                id="new-stock"
-                type="number"
-                value={newStock}
-                onChange={(e) => setNewStock(Number(e.target.value))}
-                min="0"
-              />
-            </div>
-            <Button onClick={handleUpdateStock} className="w-full">
-              Update Stock
-            </Button>
-          </div>
+          <ProductEditForm 
+            product={editingProduct} 
+            onSubmit={handleUpdateProduct}
+            isAdmin={isAdmin}
+          />
         </DialogContent>
       </Dialog>
     </div>
@@ -340,6 +326,148 @@ const ProductForm = ({
       
       <Button type="submit" className="w-full">
         {product ? 'Update Product' : 'Add Product'}
+      </Button>
+    </form>
+  );
+};
+
+const ProductEditForm = ({ 
+  product, 
+  onSubmit,
+  isAdmin = false
+}: { 
+  product?: Product | null; 
+  onSubmit: (data: Product) => void;
+  isAdmin?: boolean;
+}) => {
+  const [formData, setFormData] = useState({
+    name: product?.name || '',
+    category: product?.category || '',
+    unit: product?.unit || '',
+    selling_price: product?.selling_price || 0,
+    cost_price: product?.cost_price || 0,
+    stock_quantity: product?.stock_quantity || 0,
+    reorder_level: product?.reorder_level || 0,
+    barcode: product?.barcode || ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!product) return;
+    onSubmit({ 
+      ...product, 
+      ...formData,
+      updated_at: new Date().toISOString()
+    });
+  };
+
+  if (!product) return null;
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Product Name - Full Width */}
+      <div>
+        <Label htmlFor="edit-name" className="text-base font-medium">Product Name</Label>
+        <Input
+          id="edit-name"
+          value={formData.name}
+          onChange={(e) => setFormData({...formData, name: e.target.value})}
+          required
+          className="mt-2 text-lg p-4 border-2 border-primary/20 focus:border-primary rounded-lg"
+        />
+      </div>
+      
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-2 gap-6">
+        {/* Left Column */}
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="edit-category" className="text-base font-medium">Category</Label>
+            <Input
+              id="edit-category"
+              value={formData.category}
+              onChange={(e) => setFormData({...formData, category: e.target.value})}
+              required
+              className="mt-2 p-3"
+              disabled={!isAdmin}
+            />
+          </div>
+          
+          {isAdmin && (
+            <div>
+              <Label htmlFor="edit-cost-price" className="text-base font-medium">Cost Price (KES)</Label>
+              <Input
+                id="edit-cost-price"
+                type="number"
+                value={formData.cost_price}
+                onChange={(e) => setFormData({...formData, cost_price: Number(e.target.value)})}
+                required
+                className="mt-2 p-3"
+              />
+            </div>
+          )}
+          
+          <div>
+            <Label htmlFor="edit-stock" className="text-base font-medium">Stock Quantity</Label>
+            <Input
+              id="edit-stock"
+              type="number"
+              value={formData.stock_quantity}
+              onChange={(e) => setFormData({...formData, stock_quantity: Number(e.target.value)})}
+              required
+              className="mt-2 p-3"
+            />
+          </div>
+        </div>
+        
+        {/* Right Column */}
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="edit-unit" className="text-base font-medium">Unit</Label>
+            <Input
+              id="edit-unit"
+              value={formData.unit}
+              onChange={(e) => setFormData({...formData, unit: e.target.value})}
+              required
+              className="mt-2 p-3"
+              disabled={!isAdmin}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="edit-selling-price" className="text-base font-medium">Selling Price (KES)</Label>
+            <Input
+              id="edit-selling-price"
+              type="number"
+              value={formData.selling_price}
+              onChange={(e) => setFormData({...formData, selling_price: Number(e.target.value)})}
+              required
+              className="mt-2 p-3"
+            />
+          </div>
+          
+          {isAdmin && (
+            <div>
+              <Label htmlFor="edit-reorder" className="text-base font-medium">Reorder Level</Label>
+              <Input
+                id="edit-reorder"
+                type="number"
+                value={formData.reorder_level}
+                onChange={(e) => setFormData({...formData, reorder_level: Number(e.target.value)})}
+                required
+                className="mt-2 p-3"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Update Button */}
+      <Button 
+        type="submit" 
+        className="w-full h-12 text-lg font-semibold bg-success hover:bg-success/90"
+      >
+        Update Product
       </Button>
     </form>
   );
