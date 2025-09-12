@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
+import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,8 +25,17 @@ import { ReportsView } from '@/components/Reports/ReportsView';
 import { Settings } from '@/components/Settings/Settings';
 
 export const Layout = () => {
-  const { currentUser, logout, syncStatus } = useStore();
+  const { syncStatus } = useStore();
+  const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('pos');
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const getSyncIcon = () => {
     if (!syncStatus.isOnline) return <WifiOff className="h-4 w-4" />;
@@ -67,13 +77,13 @@ export const Layout = () => {
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <div className="text-right">
-                <p className="text-sm font-medium">{currentUser?.full_name}</p>
-                <p className="text-xs text-muted-foreground capitalize">{currentUser?.role}</p>
+                <p className="text-sm font-medium">{user?.user_metadata?.full_name || user?.email}</p>
+                <p className="text-xs text-muted-foreground">User</p>
               </div>
               <Button 
                 variant="ghost" 
                 size="sm" 
-                onClick={logout}
+                onClick={handleSignOut}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <LogOut className="h-4 w-4" />
