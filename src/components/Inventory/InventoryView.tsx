@@ -8,12 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useStore } from '@/store/useStore';
+import { useRole } from '@/hooks/useRole';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { Product } from '@/types';
 
 export const InventoryView = () => {
-  const { products, updateStock, addProduct, currentUser } = useStore();
+  const { products, updateStock, addProduct } = useStore();
+  const { isAdmin } = useRole();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -77,7 +79,7 @@ export const InventoryView = () => {
     }
   };
 
-  const isAdmin = currentUser?.role === 'admin';
+  
 
   return (
     <div className="p-6 space-y-6">
