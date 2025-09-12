@@ -5,10 +5,6 @@ import { mockProducts, mockCustomers, mockPendingOrders, mockUsers } from '@/dat
 import { offlineManager } from '@/lib/db';
 
 interface StoreState {
-  // Auth
-  currentUser: User | null;
-  isAuthenticated: boolean;
-  
   // Data
   products: Product[];
   customers: Customer[];
@@ -23,8 +19,6 @@ interface StoreState {
   syncStatus: SyncStatus;
   
   // Actions
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
   
   // Cart actions
   addToCart: (product: Product, quantity: number) => void;
@@ -73,8 +67,6 @@ export const useStore = create<StoreState>()(
 
       return {
       // Initial state
-      currentUser: null,
-      isAuthenticated: false,
       products: mockProducts,
       customers: mockCustomers,
       sales: [],
@@ -87,19 +79,6 @@ export const useStore = create<StoreState>()(
         lastSync: null
       },
       
-      // Auth actions
-      login: (username: string, password: string) => {
-        const user = mockUsers.find(u => u.username === username);
-        if (user && password === 'password') { // Simple demo auth
-          set({ currentUser: user, isAuthenticated: true });
-          return true;
-        }
-        return false;
-      },
-      
-      logout: () => {
-        set({ currentUser: null, isAuthenticated: false });
-      },
       
       // Cart actions
       addToCart: (product: Product, quantity: number) => {
