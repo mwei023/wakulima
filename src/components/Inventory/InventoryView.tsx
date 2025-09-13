@@ -381,11 +381,17 @@ const ProductEditForm = ({
       <div className="grid grid-cols-2 gap-6">
         {/* Left Column */}
         <div className="space-y-4">
-          <CategorySelector
-            value={formData.category}
-            onChange={(category) => setFormData({...formData, category})}
-            disabled={!isAdmin}
-          />
+          <div>
+            <Label htmlFor="edit-category" className="text-base font-medium">Category</Label>
+            <Input
+              id="edit-category"
+              value={formData.category}
+              onChange={(e) => setFormData({...formData, category: e.target.value})}
+              required
+              className="mt-2 p-3"
+              disabled={!isAdmin}
+            />
+          </div>
           
           {isAdmin && (
             <div>
