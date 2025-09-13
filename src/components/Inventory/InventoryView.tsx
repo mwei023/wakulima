@@ -12,6 +12,7 @@ import { useRole } from '@/hooks/useRole';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { Product } from '@/types';
+import { CategorySelector } from './CategorySelector';
 
 export const InventoryView = () => {
   const { products, updateStock, addProduct } = useStore();
@@ -258,12 +259,9 @@ const ProductForm = ({
         </div>
         
         <div>
-          <Label htmlFor="category">Category</Label>
-          <Input
-            id="category"
+          <CategorySelector
             value={formData.category}
-            onChange={(e) => setFormData({...formData, category: e.target.value})}
-            required
+            onChange={(category) => setFormData({...formData, category})}
           />
         </div>
         
@@ -383,17 +381,11 @@ const ProductEditForm = ({
       <div className="grid grid-cols-2 gap-6">
         {/* Left Column */}
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="edit-category" className="text-base font-medium">Category</Label>
-            <Input
-              id="edit-category"
-              value={formData.category}
-              onChange={(e) => setFormData({...formData, category: e.target.value})}
-              required
-              className="mt-2 p-3"
-              disabled={!isAdmin}
-            />
-          </div>
+          <CategorySelector
+            value={formData.category}
+            onChange={(category) => setFormData({...formData, category})}
+            disabled={!isAdmin}
+          />
           
           {isAdmin && (
             <div>
