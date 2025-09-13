@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useStore } from '@/store/useStore';
 import { useAuth } from '@/hooks/useAuth';
+import { useRole } from '@/hooks/useRole';
+import { useStore } from '@/store/useStore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,9 +26,10 @@ import { ReportsView } from '@/components/Reports/ReportsView';
 import { Settings } from '@/components/Settings/Settings';
 
 export const Layout = () => {
-  const { syncStatus } = useStore();
-  const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('pos');
+  const syncStatus = useStore(state => state.syncStatus);
+  const { user, signOut } = useAuth();
+  const { role, isAdmin } = useRole();
 
   const handleSignOut = async () => {
     try {
@@ -78,7 +80,7 @@ export const Layout = () => {
               <ThemeToggle />
               <div className="text-right">
                 <p className="text-sm font-medium">{user?.user_metadata?.full_name || user?.email}</p>
-                <p className="text-xs text-muted-foreground">User</p>
+                <p className="text-xs text-muted-foreground capitalize">{role || 'Loading...'}</p>
               </div>
               <Button 
                 variant="ghost" 
