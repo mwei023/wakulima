@@ -1,5 +1,8 @@
-import { useState } from 'react';
-import { Search, Plus, Trash2, CreditCard, Banknote, Smartphone } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Search, Plus, Trash2, CreditCard, Banknote, Smartphone, Scan, Printer } from 'lucide-react';
+import { BarcodeScanner } from './BarcodeScanner';
+import { Receipt } from './Receipt';
+import ReactToPrint from 'react-to-print';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -25,6 +28,9 @@ export const POSInterface = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'mpesa' | 'credit'>('cash');
+  const [showScanner, setShowScanner] = useState(false);
+  const [lastSale, setLastSale] = useState<any>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
