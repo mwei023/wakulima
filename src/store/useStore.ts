@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { Product, Customer, Sale, CartItem, User, SyncStatus, PendingOrder } from '@/types';
 import { mockProducts, mockCustomers, mockPendingOrders, mockUsers } from '@/data/mockData';
 import { offlineManager } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 
 interface StoreState {
   // Data
@@ -19,6 +20,7 @@ interface StoreState {
   syncStatus: SyncStatus;
   
   // Actions
+  loadData: () => Promise<void>;
   
   // Cart actions
   addToCart: (product: Product, quantity: number) => void;
@@ -66,19 +68,55 @@ export const useStore = create<StoreState>()(
       });
 
       return {
-      // Initial state
-      products: mockProducts,
-      customers: mockCustomers,
+      // Initial state  
+      products: [],
+      customers: [],
       sales: [],
-      pendingOrders: mockPendingOrders,
+      pendingOrders: [],
       cart: [],
-      selectedCustomer: mockCustomers[0], // Walk-in customer by default
+      selectedCustomer: null,
       syncStatus: {
         isOnline: offlineManager.getOnlineStatus(),
         pendingSales: 0,
         lastSync: null
       },
       
+      // Data loading
+      loadData: async () => {
+        try {
+          const { data: products } = await supabase.from('products').select('*');
+          const { data: customers } = await supabase.from('customers').select('*');
+          const { data: sales } = await supabase.from('sales').select(`
+            *,
+            sale_items (*)
+          `);
+          const { data: pendingOrders } = await supabase.from('pending_orders').select('*');
+          
+          // Transform sales data to match interface
+          const transformedSales = sales?.map(sale => ({
+            ...sale,
+            items: sale.sale_items || []
+          })) || [];
+          
+          set({
+            products: products || [],
+            customers: customers || [],
+            sales: transformedSales,
+            pendingOrders: pendingOrders || [],
+            selectedCustomer: customers?.[0] || null
+          });
+        } catch (error) {
+          console.error('Error loading data:', error);
+          // Fallback to mock data
+          set({
+            products: mockProducts,
+            customers: mockCustomers,
+            sales: [],
+            pendingOrders: mockPendingOrders,
+            selectedCustomer: mockCustomers[0]
+          });
+        }
+      },
       
       // Cart actions
       addToCart: (product: Product, quantity: number) => {
@@ -125,7 +163,8 @@ export const useStore = create<StoreState>()(
       },
       
       clearCart: () => {
-        set({ cart: [], selectedCustomer: mockCustomers[0] });
+        const { customers } = get();
+        set({ cart: [], selectedCustomer: customers[0] || null });
       },
       
       setSelectedCustomer: (customer: Customer | null) => {
@@ -191,17 +230,76 @@ export const useStore = create<StoreState>()(
           );
         }
         
-        // Queue sale for offline sync if needed
-        if (!offlineManager.getOnlineStatus()) {
-          offlineManager.queueSale(sale);
-        }
+        // Save to Supabase
+        const saveSale = async () => {
+          try {
+            const { data: saleData, error: saleError } = await supabase
+              .from('sales')
+              .insert([{
+                id: sale.id,
+                customer_id: sale.customer_id,
+                total_amount: sale.total_amount,
+                payment_method: sale.payment_method,
+                status: 'pending',
+                timestamp: sale.timestamp
+              }])
+              .select()
+              .single();
+
+            if (saleError) throw saleError;
+
+            // Insert sale items
+            const { error: itemsError } = await supabase
+              .from('sale_items')
+              .insert(sale.items.map(item => ({
+                sale_id: sale.id,
+                product_id: item.product_id,
+                product_name: item.product_name,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                total_line: item.total_line
+              })));
+
+            if (itemsError) throw itemsError;
+
+            // Update product stock
+            for (const item of cart) {
+              const { error: stockError } = await supabase
+                .from('products')
+                .update({ 
+                  stock_quantity: updatedProducts.find(p => p.id === item.product.id)?.stock_quantity 
+                })
+                .eq('id', item.product.id);
+              
+              if (stockError) throw stockError;
+            }
+
+            // Update customer balance if credit
+            if (paymentMethod === 'credit' && selectedCustomer) {
+              const { error: customerError } = await supabase
+                .from('customers')
+                .update({ 
+                  outstanding_balance: selectedCustomer.outstanding_balance + totalAmount 
+                })
+                .eq('id', selectedCustomer.id);
+              
+              if (customerError) throw customerError;
+            }
+          } catch (error) {
+            console.error('Error saving sale:', error);
+            // Queue for offline sync
+            offlineManager.queueSale(sale);
+          }
+        };
+
+        saveSale();
         
         set({
           sales: [...get().sales, sale],
           products: updatedProducts,
           customers: updatedCustomers,
           cart: [],
-          selectedCustomer: mockCustomers[0],
+          selectedCustomer: get().customers[0] || null,
           syncStatus: { 
             ...get().syncStatus, 
             pendingSales: offlineManager.getOnlineStatus() ? get().syncStatus.pendingSales : get().syncStatus.pendingSales + 1
