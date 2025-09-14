@@ -16,13 +16,17 @@ import {
   Wifi,
   WifiOff,
   RefreshCw,
-  LogOut
+  LogOut,
+  Truck,
+  Database
 } from 'lucide-react';
 import { POSInterface } from '@/components/POS/POSInterface';
 import { InventoryView } from '@/components/Inventory/InventoryView';
 import { CustomersView } from '@/components/Customers/CustomersView';
 import { OrdersView } from '@/components/Orders/OrdersView';
-import { ReportsView } from '@/components/Reports/ReportsView';
+import { AdvancedReports } from '@/components/Reports/AdvancedReports';
+import { SupplierManager } from '@/components/Inventory/SupplierManager';
+import { BackupManager } from '@/components/DataExport/BackupManager';
 import { Settings } from '@/components/Settings/Settings';
 
 export const Layout = () => {
@@ -98,7 +102,7 @@ export const Layout = () => {
       {/* Main Content */}
       <div className="container mx-auto p-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-6">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-8 gap-1">
             <TabsTrigger value="pos" className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
               <span className="hidden sm:inline">POS</span>
@@ -106,6 +110,10 @@ export const Layout = () => {
             <TabsTrigger value="inventory" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               <span className="hidden sm:inline">Inventory</span>
+            </TabsTrigger>
+            <TabsTrigger value="suppliers" className="flex items-center gap-2">
+              <Truck className="h-4 w-4" />
+              <span className="hidden sm:inline">Suppliers</span>
             </TabsTrigger>
             <TabsTrigger value="customers" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -118,6 +126,10 @@ export const Layout = () => {
             <TabsTrigger value="reports" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Reports</span>
+            </TabsTrigger>
+            <TabsTrigger value="backup" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              <span className="hidden sm:inline">Backup</span>
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <SettingsIcon className="h-4 w-4" />
@@ -133,6 +145,10 @@ export const Layout = () => {
             <InventoryView />
           </TabsContent>
           
+          <TabsContent value="suppliers" className="mt-6">
+            <SupplierManager />
+          </TabsContent>
+          
           <TabsContent value="customers" className="mt-6">
             <CustomersView />
           </TabsContent>
@@ -142,7 +158,11 @@ export const Layout = () => {
           </TabsContent>
           
           <TabsContent value="reports" className="mt-6">
-            <ReportsView />
+            <AdvancedReports />
+          </TabsContent>
+          
+          <TabsContent value="backup" className="mt-6">
+            <BackupManager />
           </TabsContent>
           
           <TabsContent value="settings" className="mt-6">

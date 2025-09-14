@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Search, Plus, Trash2, CreditCard, Banknote, Smartphone, Scan, Printer } from 'lucide-react';
 import { BarcodeScanner } from './BarcodeScanner';
 import { Receipt } from './Receipt';
-import ReactToPrint from 'react-to-print';
+import { useReactToPrint } from 'react-to-print';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,13 @@ export const POSInterface = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
+
+  const businessInfo = {
+    name: "Wakulima Agrovet",
+    address: "Kiserian, Kajiado County, Kenya",
+    phone: "+254 700 123 456",
+    email: "info@wakulima-agrovet.com"
+  };
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -121,6 +128,23 @@ export const POSInterface = () => {
         variant: "destructive"
       });
     } else {
+      // Create sale for receipt
+      const sale = {
+        id: Date.now().toString(),
+        customer_id: selectedCustomer?.id || null,
+        total_amount: cartTotal,
+        payment_method: paymentMethod,
+        timestamp: new Date().toISOString(),
+        items: cart.map(item => ({
+          id: Date.now().toString() + Math.random(),
+          product_name: item.product.name,
+          quantity: item.quantity,
+          unit_price: item.product.selling_price,
+          total_line: item.total
+        }))
+      };
+      
+      setLastSale(sale);
       toast({
         title: "Sale Completed",
         description: `Sale of ${formatCurrency(cartTotal)} completed successfully`,
@@ -129,14 +153,82 @@ export const POSInterface = () => {
     }
   };
 
+  const handlePrint = useReactToPrint({
+    contentRef: receiptRef,
+    pageStyle: `
+      @page { 
+        size: 80mm auto; 
+        margin: 0; 
+      } 
+      @media print { 
+        body { 
+          -webkit-print-color-adjust: exact; 
+        } 
+      }
+    `
+  });
+
+  const handleBarcodeScanned = (barcode: string) => {
+    const product = products.find(p => 
+      p.barcode === barcode || 
+      p.id === barcode ||
+      p.name.toLowerCase().includes(barcode.toLowerCase())
+    );
+    
+    if (product) {
+      addProductToCart(product);
+      setShowScanner(false);
+    } else {
+      toast({
+        title: "Product Not Found",
+        description: `No product found for barcode: ${barcode}`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  if (showScanner) {
+    return (
+      <div className="p-6">
+        <BarcodeScanner 
+          onScan={handleBarcodeScanned}
+          onClose={() => setShowScanner(false)}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
-      {/* Product Search & Selection */}
-      <Card>
+    <div className="space-y-6 p-6">
+      {/* Hidden Receipt for Printing */}
+      {lastSale && (
+        <div className="hidden">
+          <Receipt
+            ref={receiptRef}
+            sale={lastSale}
+            customer={selectedCustomer}
+            businessInfo={businessInfo}
+          />
+        </div>
+      )}
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Product Search & Selection */}
+        <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Product Search
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Product Search
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowScanner(true)}
+            >
+              <Scan className="h-4 w-4 mr-2" />
+              Scan
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -170,11 +262,19 @@ export const POSInterface = () => {
         </CardContent>
       </Card>
 
-      {/* Cart & Checkout */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Cart ({cartItemCount} items)</CardTitle>
-        </CardHeader>
+        {/* Cart & Checkout */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Cart ({cartItemCount} items)</span>
+              {lastSale && (
+                <Button variant="outline" size="sm" onClick={handlePrint}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Receipt
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
         <CardContent className="space-y-4">
           {/* Customer Selection */}
           <div>
@@ -299,7 +399,8 @@ export const POSInterface = () => {
             </>
           )}
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 };
