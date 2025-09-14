@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRole } from '@/hooks/useRole';
+import { useDataLoader } from '@/hooks/useDataLoader';
 import { useStore } from '@/store/useStore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,9 @@ export const Layout = () => {
   const syncStatus = useStore(state => state.syncStatus);
   const { user, signOut } = useAuth();
   const { role, isAdmin } = useRole();
+  
+  // Initialize data loading from Supabase
+  useDataLoader();
 
   const handleSignOut = async () => {
     try {
