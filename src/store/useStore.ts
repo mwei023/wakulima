@@ -34,7 +34,8 @@ interface StoreState {
   
   // Inventory actions
   updateStock: (productId: string, newQuantity: number) => void;
-  addProduct: (product: Product) => void;
+  addProduct: (product: Product) => Promise<void>;
+  updateProduct: (product: Product) => Promise<void>;
   
   // Customer actions
   addCustomer: (customer: Omit<Customer, 'id' | 'created_at'>) => void;
@@ -49,8 +50,8 @@ interface StoreState {
   forceSync: () => Promise<void>;
   
   // Category actions
-  addCategory: (categoryName: string) => void;
-  removeCategory: (categoryName: string) => void;
+  addCategory: (categoryName: string) => Promise<void>;
+  removeCategory: (categoryName: string) => Promise<void>;
 }
 
 export const useStore = create<StoreState>()(
@@ -315,17 +316,66 @@ export const useStore = create<StoreState>()(
       // Inventory actions
       updateStock: (productId: string, newQuantity: number) => {
         const { products } = get();
-        set({
-          products: products.map(product =>
-            product.id === productId
-              ? { ...product, stock_quantity: newQuantity, updated_at: new Date().toISOString() }
-              : product
-          )
-        });
+        const updatedProducts = products.map(product =>
+          product.id === productId
+            ? { ...product, stock_quantity: newQuantity, updated_at: new Date().toISOString() }
+            : product
+        );
+        
+        set({ products: updatedProducts });
+        
+        // Update in Supabase
+        supabase
+          .from('products')
+          .update({ stock_quantity: newQuantity, updated_at: new Date().toISOString() })
+          .eq('id', productId)
+          .then(({ error }) => {
+            if (error) console.error('Error updating stock:', error);
+          });
       },
 
-      addProduct: (product: Product) => {
+      addProduct: async (product: Product) => {
         set({ products: [...get().products, product] });
+        
+        // Save to Supabase
+        const { error } = await supabase
+          .from('products')
+          .insert([product]);
+        
+        if (error) {
+          console.error('Error adding product:', error);
+          throw error;
+        }
+      },
+      
+      updateProduct: async (product: Product) => {
+        const { products } = get();
+        const updatedProducts = products.map(p =>
+          p.id === product.id ? product : p
+        );
+        
+        set({ products: updatedProducts });
+        
+        // Update in Supabase
+        const { error } = await supabase
+          .from('products')
+          .update({
+            name: product.name,
+            category: product.category,
+            unit: product.unit,
+            selling_price: product.selling_price,
+            cost_price: product.cost_price,
+            stock_quantity: product.stock_quantity,
+            reorder_level: product.reorder_level,
+            barcode: product.barcode,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', product.id);
+        
+        if (error) {
+          console.error('Error updating product:', error);
+          throw error;
+        }
       },
       
       // Customer actions
@@ -437,14 +487,27 @@ export const useStore = create<StoreState>()(
       },
       
       // Category actions
-      addCategory: (categoryName: string) => {
-        // Categories are managed through products, no separate storage needed
-        // This is a placeholder for future category-specific logic
+      addCategory: async (categoryName: string) => {
+        const { error } = await supabase
+          .from('categories')
+          .insert([{ name: categoryName }]);
+        
+        if (error) {
+          console.error('Error adding category:', error);
+          throw error;
+        }
       },
       
-      removeCategory: (categoryName: string) => {
-        // Categories are managed through products, no separate storage needed
-        // This is a placeholder for future category-specific logic
+      removeCategory: async (categoryName: string) => {
+        const { error } = await supabase
+          .from('categories')
+          .delete()
+          .eq('name', categoryName);
+        
+        if (error) {
+          console.error('Error removing category:', error);
+          throw error;
+        }
       }
       };
     },

@@ -15,7 +15,7 @@ import { Product } from '@/types';
 import { CategorySelector } from './CategorySelector';
 
 export const InventoryView = () => {
-  const { products, updateStock, addProduct } = useStore();
+  const { products, updateStock, addProduct, updateProduct } = useStore();
   const { isAdmin } = useRole();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -38,7 +38,7 @@ export const InventoryView = () => {
     if (!editingProduct) return;
     
     try {
-      await addProduct(productData);
+      await updateProduct(productData);
       setEditingProduct(null);
       
       toast({
