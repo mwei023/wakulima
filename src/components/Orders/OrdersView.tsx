@@ -193,7 +193,7 @@ export const OrdersView = () => {
                   <SelectValue placeholder="Select customer (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Walk-in Customer</SelectItem>
+                  <SelectItem value="walk-in">Walk-in Customer</SelectItem>
                   {customers.filter(c => c.id !== 'walk-in').map((customer) => (
                     <SelectItem key={customer.id} value={customer.id}>
                       {customer.name} - {customer.phone}
