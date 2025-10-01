@@ -23,7 +23,7 @@ export const InventoryView = () => {
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  const categories = [...new Set(products.map(p => p.category))];
+  const categories = [...new Set(products.map(p => p.category).filter(cat => cat && cat.trim() !== ''))];
   
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
