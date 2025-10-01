@@ -53,7 +53,7 @@ export const CategorySelector = ({
       <Label className="text-base font-medium">{label}</Label>
       <div className="flex gap-2 mt-2">
         <Select 
-          value={existingCategories.includes(value) ? value : ''} 
+          value={existingCategories.includes(value) ? value : '__custom__'} 
           onValueChange={handleSelectChange}
           disabled={disabled}
         >
