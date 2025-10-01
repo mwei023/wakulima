@@ -20,7 +20,7 @@ export const CategoryManager = () => {
     count: products.filter(p => p.category === category).length
   }));
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (!newCategory.trim()) {
       toast({
         title: "Invalid Category",
@@ -39,15 +39,23 @@ export const CategoryManager = () => {
       return;
     }
 
-    addCategory(newCategory.trim());
-    setNewCategory('');
-    toast({
-      title: "Category Added",
-      description: `Category "${newCategory.trim()}" has been created`,
-    });
+    try {
+      await addCategory(newCategory.trim());
+      setNewCategory('');
+      toast({
+        title: "Category Added",
+        description: `Category "${newCategory.trim()}" has been created`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add category",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleRemoveCategory = (categoryName: string) => {
+  const handleRemoveCategory = async (categoryName: string) => {
     const productCount = products.filter(p => p.category === categoryName).length;
     if (productCount > 0) {
       toast({
@@ -58,11 +66,19 @@ export const CategoryManager = () => {
       return;
     }
 
-    removeCategory(categoryName);
-    toast({
-      title: "Category Removed",
-      description: `Category "${categoryName}" has been deleted`,
-    });
+    try {
+      await removeCategory(categoryName);
+      toast({
+        title: "Category Removed",
+        description: `Category "${categoryName}" has been deleted`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove category",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
