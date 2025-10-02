@@ -1,11 +1,3 @@
-export interface Store {
-  id: string;
-  name: string;
-  location: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Product {
   id: string;
   name: string;
@@ -16,7 +8,6 @@ export interface Product {
   stock_quantity: number;
   reorder_level: number;
   barcode?: string;
-  store_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -33,7 +24,6 @@ export interface Customer {
 export interface Sale {
   id: string;
   customer_id: string | null;
-  store_id: string;
   total_amount: number;
   payment_method: 'cash' | 'mpesa' | 'credit';
   status: 'synced' | 'pending';

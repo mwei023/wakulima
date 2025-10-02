@@ -54,16 +54,16 @@ export const InventoryView = () => {
     }
   };
 
-  const handleAddProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'store_id'>) => {
+  const handleAddProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const newProduct: Omit<Product, 'store_id'> = {
+      const newProduct: Product = {
         ...productData,
         id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
       
-      await addProduct(newProduct as Product);
+      await addProduct(newProduct);
       
       toast({
         title: "Product Added",
@@ -226,7 +226,7 @@ const ProductForm = ({
   isAdmin = false
 }: { 
   product?: Product; 
-  onSubmit: (data: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'store_id'>) => void;
+  onSubmit: (data: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => void;
   isAdmin?: boolean;
 }) => {
   const [formData, setFormData] = useState({
