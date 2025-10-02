@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
+import { useRole } from '@/hooks/useRole';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,11 +15,14 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { CategoryManager } from './CategoryManager';
+import { StoreManagement } from './StoreManagement';
+import { EmployeeManagement } from './EmployeeManagement';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 
 export const Settings = () => {
   const { syncStatus, forceSync, sales } = useStore();
+  const { isAdmin, loading: roleLoading } = useRole();
   const [issyncing, setSyncing] = useState(false);
 
   const handleForceSync = async () => {
@@ -144,6 +148,22 @@ export const Settings = () => {
       </Card>
 
       <Separator />
+
+      {/* Admin Only: Store Management */}
+      {isAdmin && (
+        <>
+          <StoreManagement />
+          <Separator />
+        </>
+      )}
+
+      {/* Admin Only: Employee Management */}
+      {isAdmin && (
+        <>
+          <EmployeeManagement />
+          <Separator />
+        </>
+      )}
 
       {/* Category Management */}
       <CategoryManager />
