@@ -94,7 +94,43 @@ export type Database = {
           },
         ]
       }
-      products: {
+      products_master: {
+        Row: {
+          barcode: string | null
+          category: string
+          cost_price: number
+          created_at: string
+          id: string
+          name: string
+          selling_price: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          barcode?: string | null
+          category: string
+          cost_price: number
+          created_at?: string
+          id?: string
+          name: string
+          selling_price: number
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          barcode?: string | null
+          category?: string
+          cost_price?: number
+          created_at?: string
+          id?: string
+          name?: string
+          selling_price?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      products_old_backup: {
         Row: {
           barcode: string | null
           category: string
@@ -207,7 +243,7 @@ export type Database = {
             foreignKeyName: "sale_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "products"
+            referencedRelation: "products_old_backup"
             referencedColumns: ["id"]
           },
           {
@@ -266,6 +302,51 @@ export type Database = {
           },
           {
             foreignKeyName: "sales_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_inventory: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          reorder_level: number
+          stock_quantity: number
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          reorder_level?: number
+          stock_quantity?: number
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          reorder_level?: number
+          stock_quantity?: number
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_inventory_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_master"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_inventory_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
@@ -346,7 +427,31 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      products: {
+        Row: {
+          barcode: string | null
+          category: string | null
+          cost_price: number | null
+          created_at: string | null
+          id: string | null
+          name: string | null
+          reorder_level: number | null
+          selling_price: number | null
+          stock_quantity: number | null
+          store_id: string | null
+          unit: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_inventory_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
