@@ -391,7 +391,10 @@ export const useStore = create<StoreState>()(
           }
         };
 
-        saveSale();
+        saveSale().then(() => {
+          // Refresh from server to reflect persisted stock and sale items
+          get().loadData().catch((e) => console.error('Reload after sale failed:', e));
+        });
         
         set({
           sales: [...get().sales, sale],
