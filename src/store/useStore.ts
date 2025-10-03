@@ -107,7 +107,43 @@ export const useStore = create<StoreState>()(
             stores.push(...(allStores || []));
           }
           
-          const { data: products } = await supabase.from('products').select('*');
+          // Load products by joining products_master with store_inventory
+          const { data: inventoryData } = await supabase
+            .from('store_inventory')
+            .select(`
+              id,
+              stock_quantity,
+              reorder_level,
+              store_id,
+              created_at,
+              updated_at,
+              products_master (
+                id,
+                name,
+                category,
+                unit,
+                selling_price,
+                cost_price,
+                barcode
+              )
+            `);
+          
+          // Transform to Product format
+          const products: Product[] = inventoryData?.map(inv => ({
+            id: inv.products_master.id,
+            name: inv.products_master.name,
+            category: inv.products_master.category,
+            unit: inv.products_master.unit,
+            selling_price: inv.products_master.selling_price,
+            cost_price: inv.products_master.cost_price,
+            barcode: inv.products_master.barcode || '',
+            stock_quantity: inv.stock_quantity,
+            reorder_level: inv.reorder_level,
+            store_id: inv.store_id,
+            created_at: inv.created_at,
+            updated_at: inv.updated_at
+          })) || [];
+          
           const { data: customers } = await supabase.from('customers').select('*');
           const { data: sales } = await supabase.from('sales').select(`
             *,
@@ -149,7 +185,11 @@ export const useStore = create<StoreState>()(
       },
       
       setSelectedStore: (storeId: string | 'all') => {
-        set({ selectedStoreId: storeId });
+        // Clear cart when switching stores
+        set({ 
+          selectedStoreId: storeId,
+          cart: []
+        });
       },
       
       addStore: async (name: string, location: string) => {
@@ -243,7 +283,7 @@ export const useStore = create<StoreState>()(
           }
         }
         
-        const saleId = Date.now().toString();
+        const saleId = crypto.randomUUID();
         const sale: Sale = {
           id: saleId,
           customer_id: selectedCustomer?.id || null,
@@ -253,7 +293,7 @@ export const useStore = create<StoreState>()(
           status: 'pending',
           timestamp: new Date().toISOString(),
           items: cart.map(item => ({
-            id: Date.now().toString() + Math.random(),
+            id: crypto.randomUUID(),
             sale_id: saleId,
             product_id: item.product.id,
             product_name: item.product.name,
@@ -318,14 +358,17 @@ export const useStore = create<StoreState>()(
 
             if (itemsError) throw itemsError;
 
-            // Update product stock
+            // Update store inventory stock
             for (const item of cart) {
+              const newQuantity = updatedProducts.find(p => p.id === item.product.id)?.stock_quantity;
               const { error: stockError } = await supabase
-                .from('products')
+                .from('store_inventory')
                 .update({ 
-                  stock_quantity: updatedProducts.find(p => p.id === item.product.id)?.stock_quantity 
+                  stock_quantity: newQuantity,
+                  updated_at: new Date().toISOString()
                 })
-                .eq('id', item.product.id);
+                .eq('product_id', item.product.id)
+                .eq('store_id', selectedStoreId);
               
               if (stockError) throw stockError;
             }
@@ -370,20 +413,21 @@ export const useStore = create<StoreState>()(
       
       // Inventory actions
       updateStock: (productId: string, newQuantity: number) => {
-        const { products } = get();
+        const { products, selectedStoreId } = get();
         const updatedProducts = products.map(product =>
-          product.id === productId
+          product.id === productId && product.store_id === selectedStoreId
             ? { ...product, stock_quantity: newQuantity, updated_at: new Date().toISOString() }
             : product
         );
         
         set({ products: updatedProducts });
         
-        // Update in Supabase
+        // Update in Supabase store_inventory
         supabase
-          .from('products')
+          .from('store_inventory')
           .update({ stock_quantity: newQuantity, updated_at: new Date().toISOString() })
-          .eq('id', productId)
+          .eq('product_id', productId)
+          .eq('store_id', selectedStoreId)
           .then(({ error }) => {
             if (error) console.error('Error updating stock:', error);
           });
@@ -396,47 +440,100 @@ export const useStore = create<StoreState>()(
           throw new Error('Please select a specific store to add products');
         }
         
-        const productWithStore = { ...product, store_id: selectedStoreId };
-        set({ products: [...get().products, productWithStore] });
+        // First, check if product exists in master catalog
+        const { data: existingProduct } = await supabase
+          .from('products_master')
+          .select('id')
+          .eq('name', product.name)
+          .eq('category', product.category)
+          .eq('unit', product.unit)
+          .maybeSingle();
         
-        // Save to Supabase
-        const { error } = await supabase
-          .from('products')
-          .insert([productWithStore]);
+        let productId = existingProduct?.id;
         
-        if (error) {
-          console.error('Error adding product:', error);
-          throw error;
+        // If product doesn't exist in master, create it
+        if (!productId) {
+          const { data: newProduct, error: masterError } = await supabase
+            .from('products_master')
+            .insert([{
+              name: product.name,
+              category: product.category,
+              unit: product.unit,
+              selling_price: product.selling_price,
+              cost_price: product.cost_price,
+              barcode: product.barcode
+            }])
+            .select()
+            .single();
+          
+          if (masterError) {
+            console.error('Error adding product to master:', masterError);
+            throw masterError;
+          }
+          productId = newProduct.id;
         }
+        
+        // Add to store inventory
+        const { error: inventoryError } = await supabase
+          .from('store_inventory')
+          .insert([{
+            product_id: productId,
+            store_id: selectedStoreId,
+            stock_quantity: product.stock_quantity,
+            reorder_level: product.reorder_level
+          }]);
+        
+        if (inventoryError) {
+          console.error('Error adding product to inventory:', inventoryError);
+          throw inventoryError;
+        }
+        
+        // Add to local state
+        const productWithStore = { ...product, id: productId, store_id: selectedStoreId };
+        set({ products: [...get().products, productWithStore] });
       },
       
       updateProduct: async (product: Product) => {
-        const { products } = get();
+        const { products, selectedStoreId } = get();
         const updatedProducts = products.map(p =>
-          p.id === product.id ? product : p
+          p.id === product.id && p.store_id === product.store_id ? product : p
         );
         
         set({ products: updatedProducts });
         
-        // Update in Supabase
-        const { error } = await supabase
-          .from('products')
+        // Update product master
+        const { error: masterError } = await supabase
+          .from('products_master')
           .update({
             name: product.name,
             category: product.category,
             unit: product.unit,
             selling_price: product.selling_price,
             cost_price: product.cost_price,
-            stock_quantity: product.stock_quantity,
-            reorder_level: product.reorder_level,
             barcode: product.barcode,
             updated_at: new Date().toISOString()
           })
           .eq('id', product.id);
         
-        if (error) {
-          console.error('Error updating product:', error);
-          throw error;
+        if (masterError) {
+          console.error('Error updating product master:', masterError);
+          throw masterError;
+        }
+        
+        // Update store inventory
+        const { error: inventoryError } = await supabase
+          .from('store_inventory')
+          .update({
+            stock_quantity: product.stock_quantity,
+            reorder_level: product.reorder_level,
+            updated_at: new Date().toISOString()
+          })
+          .eq('product_id', product.id)
+          .eq('store_id', product.store_id);
+        
+        if (inventoryError) {
+          console.error('Error updating inventory:', inventoryError);
+          throw inventoryError;
         }
       },
       
@@ -444,7 +541,7 @@ export const useStore = create<StoreState>()(
       addCustomer: (customerData) => {
         const newCustomer: Customer = {
           ...customerData,
-          id: Date.now().toString(),
+          id: crypto.randomUUID(),
           created_at: new Date().toISOString()
         };
         set({ customers: [...get().customers, newCustomer] });
@@ -481,7 +578,7 @@ export const useStore = create<StoreState>()(
             return sum + (product ? product.selling_price * item.quantity : 0);
           }, 0);
           
-          const saleId = Date.now().toString();
+          const saleId = crypto.randomUUID();
           const sale: Sale = {
             id: saleId,
             customer_id: order.assigned_customer_id,
@@ -493,7 +590,7 @@ export const useStore = create<StoreState>()(
             items: saleItems.map(item => {
               const product = products.find(p => p.id === item.productId)!;
               return {
-                id: Date.now().toString() + Math.random(),
+                id: crypto.randomUUID(),
                 sale_id: saleId,
                 product_id: product.id,
                 product_name: product.name,

@@ -15,7 +15,7 @@ import { Product } from '@/types';
 import { CategorySelector } from './CategorySelector';
 
 export const InventoryView = () => {
-  const { products, updateStock, addProduct, updateProduct } = useStore();
+  const { products, selectedStoreId, updateStock, addProduct, updateProduct } = useStore();
   const { isAdmin } = useRole();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -23,16 +23,21 @@ export const InventoryView = () => {
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  const categories = [...new Set(products.map(p => p.category).filter(cat => cat && cat.trim() !== ''))];
+  // Filter products by selected store
+  const storeProducts = selectedStoreId === 'all' 
+    ? products 
+    : products.filter(p => p.store_id === selectedStoreId);
+
+  const categories = [...new Set(storeProducts.map(p => p.category).filter(cat => cat && cat.trim() !== ''))];
   
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = storeProducts.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const lowStockProducts = products.filter(p => p.stock_quantity <= p.reorder_level);
+  const lowStockProducts = storeProducts.filter(p => p.stock_quantity <= p.reorder_level);
 
   const handleUpdateProduct = async (productData: Product) => {
     if (!editingProduct) return;
