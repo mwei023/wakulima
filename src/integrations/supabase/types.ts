@@ -105,7 +105,6 @@ export type Database = {
           reorder_level: number
           selling_price: number
           stock_quantity: number
-          store_id: string
           unit: string
           updated_at: string
         }
@@ -119,7 +118,6 @@ export type Database = {
           reorder_level?: number
           selling_price: number
           stock_quantity?: number
-          store_id: string
           unit: string
           updated_at?: string
         }
@@ -133,19 +131,10 @@ export type Database = {
           reorder_level?: number
           selling_price?: number
           stock_quantity?: number
-          store_id?: string
           unit?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "products_store_id_fkey"
-            columns: ["store_id"]
-            isOneToOne: false
-            referencedRelation: "stores"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -227,7 +216,6 @@ export type Database = {
           id: string
           payment_method: Database["public"]["Enums"]["payment_method"]
           status: Database["public"]["Enums"]["sale_status"]
-          store_id: string
           timestamp: string
           total_amount: number
           updated_at: string
@@ -239,7 +227,6 @@ export type Database = {
           id?: string
           payment_method: Database["public"]["Enums"]["payment_method"]
           status?: Database["public"]["Enums"]["sale_status"]
-          store_id: string
           timestamp?: string
           total_amount: number
           updated_at?: string
@@ -251,7 +238,6 @@ export type Database = {
           id?: string
           payment_method?: Database["public"]["Enums"]["payment_method"]
           status?: Database["public"]["Enums"]["sale_status"]
-          store_id?: string
           timestamp?: string
           total_amount?: number
           updated_at?: string
@@ -264,38 +250,7 @@ export type Database = {
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "sales_store_id_fkey"
-            columns: ["store_id"]
-            isOneToOne: false
-            referencedRelation: "stores"
-            referencedColumns: ["id"]
-          },
         ]
-      }
-      stores: {
-        Row: {
-          created_at: string
-          id: string
-          location: string | null
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          location?: string | null
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          location?: string | null
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
       user_roles: {
         Row: {
@@ -314,35 +269,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      user_stores: {
-        Row: {
-          created_at: string
-          id: string
-          store_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          store_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          store_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_stores_store_id_fkey"
-            columns: ["store_id"]
-            isOneToOne: false
-            referencedRelation: "stores"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
