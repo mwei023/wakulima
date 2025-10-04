@@ -15,7 +15,7 @@ import { Product } from '@/types';
 import { CategorySelector } from './CategorySelector';
 
 export const InventoryView = () => {
-  const { products, selectedStoreId, updateStock, addProduct, updateProduct } = useStore();
+  const { products, updateStock, addProduct, updateProduct } = useStore();
   const { isAdmin } = useRole();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -23,21 +23,16 @@ export const InventoryView = () => {
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  // Filter products by selected store
-  const storeProducts = selectedStoreId === 'all' 
-    ? products 
-    : products.filter(p => p.store_id === selectedStoreId);
-
-  const categories = [...new Set(storeProducts.map(p => p.category).filter(cat => cat && cat.trim() !== ''))];
+  const categories = [...new Set(products.map(p => p.category).filter(cat => cat && cat.trim() !== ''))];
   
-  const filteredProducts = storeProducts.filter(product => {
+  const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const lowStockProducts = storeProducts.filter(p => p.stock_quantity <= p.reorder_level);
+  const lowStockProducts = products.filter(p => p.stock_quantity <= p.reorder_level);
 
   const handleUpdateProduct = async (productData: Product) => {
     if (!editingProduct) return;
@@ -59,16 +54,16 @@ export const InventoryView = () => {
     }
   };
 
-  const handleAddProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'store_id'>) => {
+  const handleAddProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const newProduct: Omit<Product, 'store_id'> = {
+      const newProduct: Product = {
         ...productData,
         id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
       
-      await addProduct(newProduct as Product);
+      await addProduct(newProduct);
       
       toast({
         title: "Product Added",
@@ -231,7 +226,7 @@ const ProductForm = ({
   isAdmin = false
 }: { 
   product?: Product; 
-  onSubmit: (data: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'store_id'>) => void;
+  onSubmit: (data: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => void;
   isAdmin?: boolean;
 }) => {
   const [formData, setFormData] = useState({

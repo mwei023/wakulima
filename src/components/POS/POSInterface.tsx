@@ -15,7 +15,6 @@ import { toast } from '@/hooks/use-toast';
 export const POSInterface = () => {
   const {
     products,
-    selectedStoreId,
     customers,
     cart,
     selectedCustomer,
@@ -40,12 +39,7 @@ export const POSInterface = () => {
     email: "info@wakulima-agrovet.com"
   };
 
-  // Filter products by selected store
-  const storeProducts = selectedStoreId === 'all' 
-    ? products 
-    : products.filter(p => p.store_id === selectedStoreId);
-
-  const filteredProducts = storeProducts.filter(product =>
+  const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
