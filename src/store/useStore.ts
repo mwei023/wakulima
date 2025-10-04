@@ -190,7 +190,7 @@ export const useStore = create<StoreState>()(
           }
         }
         
-        const saleId = Date.now().toString();
+        const saleId = crypto.randomUUID();
         const sale: Sale = {
           id: saleId,
           customer_id: selectedCustomer?.id || null,
@@ -199,7 +199,7 @@ export const useStore = create<StoreState>()(
           status: 'pending',
           timestamp: new Date().toISOString(),
           items: cart.map(item => ({
-            id: Date.now().toString() + Math.random(),
+            id: crypto.randomUUID(),
             sale_id: saleId,
             product_id: item.product.id,
             product_name: item.product.name,
@@ -382,7 +382,7 @@ export const useStore = create<StoreState>()(
       addCustomer: (customerData) => {
         const newCustomer: Customer = {
           ...customerData,
-          id: Date.now().toString(),
+          id: crypto.randomUUID(),
           created_at: new Date().toISOString()
         };
         set({ customers: [...get().customers, newCustomer] });
@@ -411,7 +411,7 @@ export const useStore = create<StoreState>()(
             return sum + (product ? product.selling_price * item.quantity : 0);
           }, 0);
           
-          const saleId = Date.now().toString();
+          const saleId = crypto.randomUUID();
           const sale: Sale = {
             id: saleId,
             customer_id: order.assigned_customer_id,
@@ -422,7 +422,7 @@ export const useStore = create<StoreState>()(
             items: saleItems.map(item => {
               const product = products.find(p => p.id === item.productId)!;
               return {
-                id: Date.now().toString() + Math.random(),
+                id: crypto.randomUUID(),
                 sale_id: saleId,
                 product_id: product.id,
                 product_name: product.name,

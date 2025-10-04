@@ -130,13 +130,13 @@ export const POSInterface = () => {
     } else {
       // Create sale for receipt
       const sale = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         customer_id: selectedCustomer?.id || null,
         total_amount: cartTotal,
         payment_method: paymentMethod,
         timestamp: new Date().toISOString(),
         items: cart.map(item => ({
-          id: Date.now().toString() + Math.random(),
+          id: crypto.randomUUID(),
           product_name: item.product.name,
           quantity: item.quantity,
           unit_price: item.product.selling_price,
