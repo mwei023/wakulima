@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Product, Customer, Sale, CartItem, User, SyncStatus, PendingOrder } from '@/types';
+import { Product, Customer, Sale, CartItem, User, SyncStatus, PendingOrder, Store } from '@/types';
 import { mockProducts, mockCustomers, mockPendingOrders, mockUsers } from '@/data/mockData';
 import { offlineManager } from '@/lib/db';
 import { supabase } from '@/integrations/supabase/client';
 
 interface StoreState {
   // Data
+  stores: Store[];
+  selectedStoreId: string | 'all';
   products: Product[];
   customers: Customer[];
   sales: Sale[];
@@ -21,6 +23,8 @@ interface StoreState {
   
   // Actions
   loadData: () => Promise<void>;
+  setSelectedStore: (storeId: string | 'all') => void;
+  addStore: (name: string, location: string) => Promise<void>;
   
   // Cart actions
   addToCart: (product: Product, quantity: number) => void;
@@ -70,6 +74,8 @@ export const useStore = create<StoreState>()(
 
       return {
       // Initial state  
+      stores: [],
+      selectedStoreId: 'all',
       products: [],
       customers: [],
       sales: [],
@@ -85,6 +91,22 @@ export const useStore = create<StoreState>()(
       // Data loading
       loadData: async () => {
         try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          // Load user's accessible stores
+          const { data: userStores } = await supabase
+            .from('user_stores')
+            .select('store_id, stores(*)')
+            .eq('user_id', user?.id);
+          
+          const stores = userStores?.map(us => us.stores).filter(Boolean) || [];
+          
+          // If no stores, load all stores (admin)
+          if (stores.length === 0) {
+            const { data: allStores } = await supabase.from('stores').select('*');
+            stores.push(...(allStores || []));
+          }
+          
           const { data: products } = await supabase.from('products').select('*');
           const { data: customers } = await supabase.from('customers').select('*');
           const { data: sales } = await supabase.from('sales').select(`
@@ -99,7 +121,12 @@ export const useStore = create<StoreState>()(
             items: sale.sale_items || []
           })) || [];
           
+          // Set default store to first available or 'all' for admins
+          const defaultStoreId = stores.length === 1 ? stores[0].id : 'all';
+          
           set({
+            stores: stores,
+            selectedStoreId: defaultStoreId,
             products: products || [],
             customers: customers || [],
             sales: transformedSales,
@@ -110,6 +137,8 @@ export const useStore = create<StoreState>()(
           console.error('Error loading data:', error);
           // Fallback to mock data
           set({
+            stores: [],
+            selectedStoreId: 'all',
             products: mockProducts,
             customers: mockCustomers,
             sales: [],
@@ -117,6 +146,25 @@ export const useStore = create<StoreState>()(
             selectedCustomer: mockCustomers[0]
           });
         }
+      },
+      
+      setSelectedStore: (storeId: string | 'all') => {
+        set({ selectedStoreId: storeId });
+      },
+      
+      addStore: async (name: string, location: string) => {
+        const { data, error } = await supabase
+          .from('stores')
+          .insert([{ name, location }])
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('Error adding store:', error);
+          throw error;
+        }
+        
+        set({ stores: [...get().stores, data] });
       },
       
       // Cart actions
@@ -174,12 +222,16 @@ export const useStore = create<StoreState>()(
       
       // Sales actions
       completeSale: (paymentMethod: 'cash' | 'mpesa' | 'credit') => {
-        const { cart, selectedCustomer, products, customers } = get();
+        const { cart, selectedCustomer, products, customers, selectedStoreId } = get();
+        
+        // Validate store selection
+        if (selectedStoreId === 'all') {
+          return 'Please select a specific store to complete the sale';
+        }
         
         if (cart.length === 0) return null;
         
         const totalAmount = cart.reduce((sum, item) => sum + item.total, 0);
-        const storeId = cart[0]?.product?.store_id || null;
         
         // Validate credit sale
         if (paymentMethod === 'credit') {
@@ -191,16 +243,17 @@ export const useStore = create<StoreState>()(
           }
         }
         
-        const saleId = crypto.randomUUID();
+        const saleId = Date.now().toString();
         const sale: Sale = {
           id: saleId,
           customer_id: selectedCustomer?.id || null,
+          store_id: selectedStoreId,
           total_amount: totalAmount,
           payment_method: paymentMethod,
           status: 'pending',
           timestamp: new Date().toISOString(),
           items: cart.map(item => ({
-            id: crypto.randomUUID(),
+            id: Date.now().toString() + Math.random(),
             sale_id: saleId,
             product_id: item.product.id,
             product_name: item.product.name,
@@ -240,11 +293,11 @@ export const useStore = create<StoreState>()(
               .insert([{
                 id: sale.id,
                 customer_id: sale.customer_id,
+                store_id: sale.store_id,
                 total_amount: sale.total_amount,
                 payment_method: sale.payment_method,
                 status: 'pending',
-                timestamp: sale.timestamp,
-                store_id: storeId as string
+                timestamp: sale.timestamp
               }])
               .select()
               .single();
@@ -337,12 +390,19 @@ export const useStore = create<StoreState>()(
       },
 
       addProduct: async (product: Product) => {
-        set({ products: [...get().products, product] });
+        const { selectedStoreId } = get();
+        
+        if (selectedStoreId === 'all') {
+          throw new Error('Please select a specific store to add products');
+        }
+        
+        const productWithStore = { ...product, store_id: selectedStoreId };
+        set({ products: [...get().products, productWithStore] });
         
         // Save to Supabase
         const { error } = await supabase
           .from('products')
-          .insert([product]);
+          .insert([productWithStore]);
         
         if (error) {
           console.error('Error adding product:', error);
@@ -384,7 +444,7 @@ export const useStore = create<StoreState>()(
       addCustomer: (customerData) => {
         const newCustomer: Customer = {
           ...customerData,
-          id: crypto.randomUUID(),
+          id: Date.now().toString(),
           created_at: new Date().toISOString()
         };
         set({ customers: [...get().customers, newCustomer] });
@@ -403,8 +463,16 @@ export const useStore = create<StoreState>()(
       
       // Orders actions
       confirmOrder: (orderId: string, saleItems: { productId: string; quantity: number }[]) => {
-        const { pendingOrders, products } = get();
+        const { pendingOrders, products, selectedStoreId } = get();
         const order = pendingOrders.find(o => o.id === orderId);
+        
+        // Use the first available store if 'all' is selected
+        const storeId = selectedStoreId === 'all' ? get().stores[0]?.id : selectedStoreId;
+        
+        if (!storeId) {
+          console.error('No store selected for order confirmation');
+          return;
+        }
         
         if (order) {
           // Create a sale from the order
@@ -413,10 +481,11 @@ export const useStore = create<StoreState>()(
             return sum + (product ? product.selling_price * item.quantity : 0);
           }, 0);
           
-          const saleId = crypto.randomUUID();
+          const saleId = Date.now().toString();
           const sale: Sale = {
             id: saleId,
             customer_id: order.assigned_customer_id,
+            store_id: storeId,
             total_amount: totalAmount,
             payment_method: 'credit', // WhatsApp orders default to credit
             status: 'pending',
@@ -424,7 +493,7 @@ export const useStore = create<StoreState>()(
             items: saleItems.map(item => {
               const product = products.find(p => p.id === item.productId)!;
               return {
-                id: crypto.randomUUID(),
+                id: Date.now().toString() + Math.random(),
                 sale_id: saleId,
                 product_id: product.id,
                 product_name: product.name,
