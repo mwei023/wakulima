@@ -7,13 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { 
   ShoppingCart, 
   Package, 
@@ -40,9 +33,6 @@ import { Settings } from '@/components/Settings/Settings';
 export const Layout = () => {
   const [activeTab, setActiveTab] = useState('pos');
   const syncStatus = useStore(state => state.syncStatus);
-  const stores = useStore(state => state.stores);
-  const selectedStoreId = useStore(state => state.selectedStoreId);
-  const setSelectedStore = useStore(state => state.setSelectedStore);
   const { user, signOut } = useAuth();
   const { role, isAdmin } = useRole();
   
@@ -74,30 +64,9 @@ export const Layout = () => {
       {/* Header */}
       <header className="border-b bg-card">
         <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-xl font-bold text-primary">Wakulima Agrovet</h1>
-              <p className="text-sm text-muted-foreground">Multi-Store POS System</p>
-            </div>
-            
-            {/* Store Selector */}
-            {stores.length > 0 && (
-              <Select value={selectedStoreId} onValueChange={setSelectedStore}>
-                <SelectTrigger className="w-[200px] bg-background">
-                  <SelectValue placeholder="Select store" />
-                </SelectTrigger>
-                <SelectContent className="z-50 bg-popover">
-                  {isAdmin && stores.length > 1 && (
-                    <SelectItem value="all">All Stores</SelectItem>
-                  )}
-                  {stores.map((store) => (
-                    <SelectItem key={store.id} value={store.id}>
-                      {store.name} {store.location ? `- ${store.location}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+          <div>
+            <h1 className="text-xl font-bold text-primary">Wakulima Agrovet</h1>
+            <p className="text-sm text-muted-foreground">Kiserian, Kenya</p>
           </div>
           
           <div className="flex items-center gap-3">
