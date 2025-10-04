@@ -157,8 +157,9 @@ export const useStore = create<StoreState>()(
             items: sale.sale_items || []
           })) || [];
           
-          // Set default store to first available or 'all' for admins
-          const defaultStoreId = stores.length === 1 ? stores[0].id : 'all';
+          // Preserve current store selection or set default only on first load
+          const currentStoreId = get().selectedStoreId;
+          const defaultStoreId = currentStoreId || (stores.length === 1 ? stores[0].id : 'all');
           
           set({
             stores: stores,
