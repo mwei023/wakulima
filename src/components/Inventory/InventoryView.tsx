@@ -237,7 +237,8 @@ const ProductForm = ({
     cost_price: product?.cost_price || 0,
     stock_quantity: product?.stock_quantity || 0,
     reorder_level: product?.reorder_level || 0,
-    barcode: product?.barcode || ''
+    barcode: product?.barcode || '',
+    store_id: product?.store_id || '9ddf957b-327f-4b93-9374-7455d2a7480b' // Default store or from product
   });
 
   const handleSubmit = (e: React.FormEvent) => {

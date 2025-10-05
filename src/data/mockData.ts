@@ -10,6 +10,7 @@ export const mockProducts: Product[] = [
     cost_price: 3200,
     stock_quantity: 25,
     reorder_level: 10,
+    store_id: '9ddf957b-327f-4b93-9374-7455d2a7480b',
     created_at: '2024-01-01',
     updated_at: '2024-01-01'
   },
@@ -22,6 +23,7 @@ export const mockProducts: Product[] = [
     cost_price: 3800,
     stock_quantity: 8,
     reorder_level: 15,
+    store_id: '9ddf957b-327f-4b93-9374-7455d2a7480b',
     created_at: '2024-01-01',
     updated_at: '2024-01-01'
   },
@@ -34,6 +36,7 @@ export const mockProducts: Product[] = [
     cost_price: 3400,
     stock_quantity: 30,
     reorder_level: 12,
+    store_id: '9ddf957b-327f-4b93-9374-7455d2a7480b',
     created_at: '2024-01-01',
     updated_at: '2024-01-01'
   },
@@ -46,6 +49,7 @@ export const mockProducts: Product[] = [
     cost_price: 4800,
     stock_quantity: 15,
     reorder_level: 8,
+    store_id: '9ddf957b-327f-4b93-9374-7455d2a7480b',
     created_at: '2024-01-01',
     updated_at: '2024-01-01'
   },
@@ -58,6 +62,7 @@ export const mockProducts: Product[] = [
     cost_price: 5500,
     stock_quantity: 12,
     reorder_level: 6,
+    store_id: '9ddf957b-327f-4b93-9374-7455d2a7480b',
     created_at: '2024-01-01',
     updated_at: '2024-01-01'
   },
@@ -70,6 +75,7 @@ export const mockProducts: Product[] = [
     cost_price: 350,
     stock_quantity: 5,
     reorder_level: 20,
+    store_id: '9ddf957b-327f-4b93-9374-7455d2a7480b',
     created_at: '2024-01-01',
     updated_at: '2024-01-01'
   },
@@ -82,6 +88,7 @@ export const mockProducts: Product[] = [
     cost_price: 520,
     stock_quantity: 18,
     reorder_level: 10,
+    store_id: '9ddf957b-327f-4b93-9374-7455d2a7480b',
     created_at: '2024-01-01',
     updated_at: '2024-01-01'
   }
