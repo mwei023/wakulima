@@ -179,7 +179,6 @@ export const useStore = create<StoreState>()(
         if (cart.length === 0) return null;
         
         const totalAmount = cart.reduce((sum, item) => sum + item.total, 0);
-        const storeId = cart[0]?.product?.store_id || null;
         
         // Validate credit sale
         if (paymentMethod === 'credit') {
@@ -243,8 +242,7 @@ export const useStore = create<StoreState>()(
                 total_amount: sale.total_amount,
                 payment_method: sale.payment_method,
                 status: 'pending',
-                timestamp: sale.timestamp,
-                store_id: storeId as string
+                timestamp: sale.timestamp
               }])
               .select()
               .single();
