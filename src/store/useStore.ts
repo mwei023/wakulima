@@ -191,7 +191,13 @@ export const useStore = create<StoreState>()(
         }
         
         const saleId = crypto.randomUUID();
-        const storeId = cart[0]?.product.store_id; // Get store_id from first cart item
+        // Derive store_id from cart product or fallback to products list (handles older persisted carts)
+        const firstCartProductId = cart[0]?.product.id;
+        const storeId = cart[0]?.product.store_id || get().products.find(p => p.id === firstCartProductId)?.store_id;
+        if (!storeId) {
+          console.error('Error: Missing store_id for sale payload');
+          return 'Unable to determine store for this sale. Please re-add items to cart and try again.';
+        }
         
         const sale: Sale = {
           id: saleId,
