@@ -64,6 +64,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    if (!session) {
+      console.log('No active session to sign out from');
+      return;
+    }
+
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Error signing out:', error);
