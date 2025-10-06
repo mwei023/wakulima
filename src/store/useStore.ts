@@ -211,8 +211,9 @@ export const useStore = create<StoreState>()(
           payment_method: paymentMethod,
           status: 'pending',
           timestamp: new Date().toISOString(),
+          store_id: storeId,
           items: cart.map(item => ({
-            id: Date.now().toString() + Math.random(),
+            id: crypto.randomUUID(),
             sale_id: saleId,
             product_id: item.product.id,
             product_name: item.product.name,
@@ -372,9 +373,9 @@ export const useStore = create<StoreState>()(
         
         set({ products: updatedProducts });
         
-        // Update in Supabase
+        // Update in Supabase store_inventory table (products is a view)
         supabase
-          .from('products')
+          .from('store_inventory')
           .update({ stock_quantity: newQuantity, updated_at: new Date().toISOString() })
           .eq('id', productId)
           .then(({ error }) => {
@@ -490,7 +491,7 @@ export const useStore = create<StoreState>()(
       addCustomer: (customerData) => {
         const newCustomer: Customer = {
           ...customerData,
-          id: Date.now().toString(),
+          id: crypto.randomUUID(),
           created_at: new Date().toISOString()
         };
         set({ customers: [...get().customers, newCustomer] });
@@ -526,6 +527,7 @@ export const useStore = create<StoreState>()(
             payment_method: 'credit', // WhatsApp orders default to credit
             status: 'pending',
             timestamp: new Date().toISOString(),
+            store_id: storeId,
             items: saleItems.map(item => {
               const product = products.find(p => p.id === item.productId)!;
               return {
