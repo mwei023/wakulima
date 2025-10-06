@@ -251,19 +251,34 @@ export const useStore = create<StoreState>()(
             await supabase.auth.refreshSession();
             // Get current user for created_by field
             const { data: { session } } = await supabase.auth.getSession();
+            console.log('session', session);
             if (!session || !session.user) throw new Error('User not authenticated');
+
+            const user = session?.user;
+            console.log('user id', user?.id);
+
+            const payload: {
+              customer_id: string;
+              total_amount: number;
+              payment_method: 'cash' | 'mpesa' | 'credit';
+              status: 'pending' | 'synced';
+              timestamp: string;
+              created_by: string | null;
+              store_id: string;
+            } = {
+              customer_id: sale.customer_id,
+              total_amount: sale.total_amount,
+              payment_method: sale.payment_method,
+              status: 'pending',
+              timestamp: sale.timestamp,
+              created_by: user?.id ?? null,
+              store_id: "9ddf957b-327f-4b93-9374-7455d2a7480b"
+            };
+            console.log('sale payload', payload);
 
             const { data: saleData, error: saleError } = await supabase
               .from('sales')
-              .insert([{
-                customer_id: sale.customer_id,
-                total_amount: sale.total_amount,
-                payment_method: sale.payment_method,
-                status: 'pending',
-                timestamp: sale.timestamp,
-                created_by: session.user.id,
-                store_id: "9ddf957b-327f-4b93-9374-7455d2a7480b"
-              }])
+              .insert([payload])
               .select()
               .single();
 
