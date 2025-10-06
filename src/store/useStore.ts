@@ -211,7 +211,7 @@ export const useStore = create<StoreState>()(
           payment_method: paymentMethod,
           status: 'pending',
           timestamp: new Date().toISOString(),
-          store_id: storeId,
+          store_id: "9ddf957b-327f-4b93-9374-7455d2a7480b",
           items: cart.map(item => ({
             id: crypto.randomUUID(),
             sale_id: saleId,
@@ -527,7 +527,7 @@ export const useStore = create<StoreState>()(
             payment_method: 'credit', // WhatsApp orders default to credit
             status: 'pending',
             timestamp: new Date().toISOString(),
-            store_id: storeId,
+            store_id: "9ddf957b-327f-4b93-9374-7455d2a7480b",
             items: saleItems.map(item => {
               const product = products.find(p => p.id === item.productId)!;
               return {
