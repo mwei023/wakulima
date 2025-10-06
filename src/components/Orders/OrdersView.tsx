@@ -20,16 +20,24 @@ export const OrdersView = () => {
   const pendingOrdersList = pendingOrders.filter(order => order.status === 'pending');
   const processedOrders = pendingOrders.filter(order => order.status !== 'pending');
 
-  const handleConfirmOrder = () => {
+  const handleConfirmOrder = async () => {
     if (selectedOrder && orderItems.length > 0) {
-      confirmOrder(selectedOrder.id, orderItems);
-      toast({
-        title: "Order Confirmed",
-        description: "Order has been confirmed and added to sales",
-      });
-      setSelectedOrder(null);
-      setOrderItems([]);
-      setSelectedCustomer('');
+      try {
+        await confirmOrder(selectedOrder.id, orderItems);
+        toast({
+          title: "Order Confirmed",
+          description: "Order has been confirmed and added to sales",
+        });
+        setSelectedOrder(null);
+        setOrderItems([]);
+        setSelectedCustomer('');
+      } catch (error) {
+        toast({
+          title: "Error Confirming Order",
+          description: "Failed to confirm order. Please try again.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
