@@ -243,6 +243,8 @@ export const useStore = create<StoreState>()(
         // Save to Supabase
         const saveSale = async () => {
           try {
+            const { data: { user } } = await supabase.auth.getUser();
+            
             const { data: saleData, error: saleError } = await supabase
               .from('sales')
               .insert([{
@@ -252,7 +254,8 @@ export const useStore = create<StoreState>()(
                 payment_method: sale.payment_method,
                 status: 'pending',
                 timestamp: sale.timestamp,
-                store_id: sale.store_id
+                store_id: sale.store_id,
+                created_by: user?.id
               }])
               .select()
               .single();
