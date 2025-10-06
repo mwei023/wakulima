@@ -1,10 +1,7 @@
 const CACHE_NAME = 'wakulima-agrovet-v1';
 const urlsToCache = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  '/manifest.json',
-  '/placeholder.svg'
+  '/manifest.json'
 ];
 
 // Install service worker
@@ -13,9 +10,12 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        return cache.addAll(urlsToCache).catch((err) => {
+          console.warn('Cache addAll failed:', err);
+        });
       })
   );
+  self.skipWaiting();
 });
 
 // Fetch events - serve from cache when offline
