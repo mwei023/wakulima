@@ -30,7 +30,7 @@ interface StoreState {
   setSelectedCustomer: (customer: Customer | null) => void;
   
   // Sales actions
-  completeSale: (paymentMethod: 'cash' | 'mpesa' | 'credit') => string | null;
+  completeSale: (paymentMethod: 'cash' | 'mpesa' | 'credit') => Promise<string | null>;
   
   // Inventory actions
   updateStock: (productId: string, newQuantity: number) => void;
@@ -42,7 +42,7 @@ interface StoreState {
   updateCustomerBalance: (customerId: string, amount: number) => void;
   
   // Orders actions
-  confirmOrder: (orderId: string, saleItems: { productId: string; quantity: number }[]) => void;
+  confirmOrder: (orderId: string, saleItems: { productId: string; quantity: number }[]) => Promise<void>;
   ignoreOrder: (orderId: string) => void;
   
   // Sync actions
@@ -85,6 +85,19 @@ export const useStore = create<StoreState>()(
       // Data loading
       loadData: async () => {
         try {
+          // Try loading cached data first
+          const cachedData = await offlineManager.loadCachedData();
+          if (cachedData) {
+            set({
+              products: cachedData.products,
+              customers: cachedData.customers,
+              sales: cachedData.sales,
+              pendingOrders: [],
+              selectedCustomer: cachedData.customers?.[0] || null
+            });
+          }
+
+          // Then fetch fresh data from Supabase
           const { data: products } = await supabase.from('products').select('*');
           const { data: customers } = await supabase.from('customers').select('*');
           const { data: sales } = await supabase.from('sales').select(`
@@ -173,13 +186,13 @@ export const useStore = create<StoreState>()(
       },
       
       // Sales actions
-      completeSale: (paymentMethod: 'cash' | 'mpesa' | 'credit') => {
+      completeSale: async (paymentMethod: 'cash' | 'mpesa' | 'credit') => {
         const { cart, selectedCustomer, products, customers } = get();
-        
+
         if (cart.length === 0) return null;
-        
+
         const totalAmount = cart.reduce((sum, item) => sum + item.total, 0);
-        
+
         // Validate credit sale
         if (paymentMethod === 'credit') {
           if (!selectedCustomer || selectedCustomer.id === 'walk-in') {
@@ -189,7 +202,7 @@ export const useStore = create<StoreState>()(
             return 'Sale exceeds customer credit limit';
           }
         }
-        
+
         const saleId = Date.now().toString();
         const sale: Sale = {
           id: saleId,
@@ -208,7 +221,7 @@ export const useStore = create<StoreState>()(
             total_line: item.total
           }))
         };
-        
+
         // Update stock
         const updatedProducts = products.map(product => {
           const cartItem = cart.find(item => item.product.id === product.id);
@@ -220,7 +233,7 @@ export const useStore = create<StoreState>()(
           }
           return product;
         });
-        
+
         // Update customer balance if credit sale
         let updatedCustomers = customers;
         if (paymentMethod === 'credit' && selectedCustomer) {
@@ -230,30 +243,41 @@ export const useStore = create<StoreState>()(
               : customer
           );
         }
-        
+
         // Save to Supabase
         const saveSale = async () => {
-          try {
+        try {
+            // Refresh session to ensure it's valid
+            await supabase.auth.refreshSession();
+            // Get current user for created_by field
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session || !session.user) throw new Error('User not authenticated');
+
             const { data: saleData, error: saleError } = await supabase
               .from('sales')
               .insert([{
-                id: sale.id,
                 customer_id: sale.customer_id,
                 total_amount: sale.total_amount,
                 payment_method: sale.payment_method,
                 status: 'pending',
-                timestamp: sale.timestamp
+                timestamp: sale.timestamp,
+                created_by: session.user.id,
+                store_id: "9ddf957b-327f-4b93-9374-7455d2a7480b"
               }])
               .select()
               .single();
 
             if (saleError) throw saleError;
 
+            // Update sale with the generated UUID
+            sale.id = saleData.id;
+            sale.items = sale.items.map(item => ({ ...item, sale_id: saleData.id }));
+
             // Insert sale items
             const { error: itemsError } = await supabase
               .from('sale_items')
               .insert(sale.items.map(item => ({
-                sale_id: sale.id,
+                sale_id: saleData.id,
                 product_id: item.product_id,
                 product_name: item.product_name,
                 quantity: item.quantity,
@@ -263,15 +287,24 @@ export const useStore = create<StoreState>()(
 
             if (itemsError) throw itemsError;
 
-            // Update product stock
-            for (const item of cart) {
-              const { error: stockError } = await supabase
-                .from('products')
-                .update({ 
-                  stock_quantity: updatedProducts.find(p => p.id === item.product.id)?.stock_quantity 
-                })
-                .eq('id', item.product.id);
-              
+            // Update stock quantities in store_inventory
+            for (const item of sale.items) {
+              // Fetch current stock
+              const { data: currentProduct, error: fetchError } = await (supabase as any)
+                .from('store_inventory')
+                .select('stock_quantity')
+                .eq('id', item.product_id)
+                .single();
+
+              if (fetchError) throw fetchError;
+
+              // Update with new stock
+              const newStock = currentProduct.stock_quantity - item.quantity;
+              const { error: stockError } = await (supabase as any)
+                .from('store_inventory')
+                .update({ stock_quantity: newStock })
+                .eq('id', item.product_id);
+
               if (stockError) throw stockError;
             }
 
@@ -279,11 +312,11 @@ export const useStore = create<StoreState>()(
             if (paymentMethod === 'credit' && selectedCustomer) {
               const { error: customerError } = await supabase
                 .from('customers')
-                .update({ 
-                  outstanding_balance: selectedCustomer.outstanding_balance + totalAmount 
+                .update({
+                  outstanding_balance: selectedCustomer.outstanding_balance + totalAmount
                 })
                 .eq('id', selectedCustomer.id);
-              
+
               if (customerError) throw customerError;
             }
           } catch (error) {
@@ -293,26 +326,26 @@ export const useStore = create<StoreState>()(
           }
         };
 
-        saveSale();
-        
+        await saveSale();
+
         set({
           sales: [...get().sales, sale],
           products: updatedProducts,
           customers: updatedCustomers,
           cart: [],
           selectedCustomer: get().customers[0] || null,
-          syncStatus: { 
-            ...get().syncStatus, 
+          syncStatus: {
+            ...get().syncStatus,
             pendingSales: offlineManager.getOnlineStatus() ? get().syncStatus.pendingSales : get().syncStatus.pendingSales + 1
           }
         });
-        
+
         // Cache updated data offline
-        offlineManager.cacheData(updatedProducts, updatedCustomers, [...get().sales, sale], get().syncStatus);
-        
+        await offlineManager.cacheData(updatedProducts, updatedCustomers, [...get().sales, sale], get().syncStatus);
+
         return null; // Success
       },
-      
+
       // Inventory actions
       updateStock: (productId: string, newQuantity: number) => {
         const { products } = get();
@@ -335,17 +368,52 @@ export const useStore = create<StoreState>()(
       },
 
       addProduct: async (product: Product) => {
-        set({ products: [...get().products, product] });
-        
-        // Save to Supabase
-        const { error } = await supabase
-          .from('products')
-          .insert([product]);
-        
-        if (error) {
-          console.error('Error adding product:', error);
-          throw error;
+        // Save to Supabase - insert into underlying tables
+        // First, insert into products_master
+        const { data: masterData, error: masterError } = await (supabase as any)
+          .from('products_master')
+          .insert({
+            name: product.name,
+            category: product.category,
+            unit: product.unit,
+            selling_price: product.selling_price,
+            cost_price: product.cost_price,
+            barcode: product.barcode
+          })
+          .select()
+          .single();
+
+        if (masterError) {
+          console.error('Error adding to products_master:', masterError);
+          throw masterError;
         }
+
+        // Then, insert into store_inventory
+        const { data: inventoryData, error: inventoryError } = await (supabase as any)
+          .from('store_inventory')
+          .insert({
+            product_id: masterData.id,
+            stock_quantity: product.stock_quantity,
+            reorder_level: product.reorder_level,
+            store_id: "9ddf957b-327f-4b93-9374-7455d2a7480b"
+          })
+          .select()
+          .single();
+
+        if (inventoryError) {
+          console.error('Error adding to store_inventory:', inventoryError);
+          throw inventoryError;
+        }
+
+        // Update local state with the generated IDs
+        const newProduct = {
+          ...product,
+          id: inventoryData.id, // Use store_inventory.id as the product id
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        set({ products: [...get().products, newProduct] });
       },
       
       updateProduct: async (product: Product) => {
@@ -353,28 +421,53 @@ export const useStore = create<StoreState>()(
         const updatedProducts = products.map(p =>
           p.id === product.id ? product : p
         );
-        
+
         set({ products: updatedProducts });
-        
-        // Update in Supabase
-        const { error } = await supabase
-          .from('products')
+
+        // Update in Supabase - update underlying tables
+        // First, get the product_id from store_inventory
+        const { data: inventoryData, error: fetchError } = await (supabase as any)
+          .from('store_inventory')
+          .select('product_id')
+          .eq('id', product.id)
+          .single();
+
+        if (fetchError) {
+          console.error('Error fetching product_id:', fetchError);
+          throw fetchError;
+        }
+
+        // Update products_master
+        const { error: masterError } = await (supabase as any)
+          .from('products_master')
           .update({
             name: product.name,
             category: product.category,
             unit: product.unit,
             selling_price: product.selling_price,
             cost_price: product.cost_price,
+            barcode: product.barcode
+          })
+          .eq('id', inventoryData.product_id);
+
+        if (masterError) {
+          console.error('Error updating products_master:', masterError);
+          throw masterError;
+        }
+
+        // Update store_inventory
+        const { error: inventoryError } = await (supabase as any)
+          .from('store_inventory')
+          .update({
             stock_quantity: product.stock_quantity,
             reorder_level: product.reorder_level,
-            barcode: product.barcode,
             updated_at: new Date().toISOString()
           })
           .eq('id', product.id);
-        
-        if (error) {
-          console.error('Error updating product:', error);
-          throw error;
+
+        if (inventoryError) {
+          console.error('Error updating store_inventory:', inventoryError);
+          throw inventoryError;
         }
       },
       
@@ -400,20 +493,19 @@ export const useStore = create<StoreState>()(
       },
       
       // Orders actions
-      confirmOrder: (orderId: string, saleItems: { productId: string; quantity: number }[]) => {
+      confirmOrder: async (orderId: string, saleItems: { productId: string; quantity: number }[]) => {
         const { pendingOrders, products } = get();
         const order = pendingOrders.find(o => o.id === orderId);
-        
+
         if (order) {
           // Create a sale from the order
           const totalAmount = saleItems.reduce((sum, item) => {
             const product = products.find(p => p.id === item.productId);
             return sum + (product ? product.selling_price * item.quantity : 0);
           }, 0);
-          
-          const saleId = Date.now().toString();
+
           const sale: Sale = {
-            id: saleId,
+            id: '',
             customer_id: order.assigned_customer_id,
             total_amount: totalAmount,
             payment_method: 'credit', // WhatsApp orders default to credit
@@ -422,8 +514,8 @@ export const useStore = create<StoreState>()(
             items: saleItems.map(item => {
               const product = products.find(p => p.id === item.productId)!;
               return {
-                id: Date.now().toString() + Math.random(),
-                sale_id: saleId,
+                id: '',
+                sale_id: '',
                 product_id: product.id,
                 product_name: product.name,
                 quantity: item.quantity,
@@ -432,26 +524,93 @@ export const useStore = create<StoreState>()(
               };
             })
           };
-          
-          // Update stock
-          const updatedProducts = products.map(product => {
-            const saleItem = saleItems.find(item => item.productId === product.id);
-            if (saleItem) {
-              return {
-                ...product,
-                stock_quantity: product.stock_quantity - saleItem.quantity
-              };
+
+          try {
+            // Refresh session to ensure it's valid
+            await supabase.auth.refreshSession();
+            // Get current user for created_by field
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session || !session.user) throw new Error('User not authenticated');
+
+            // Save sale to Supabase
+            const { data: saleData, error: saleError } = await supabase
+              .from('sales')
+              .insert({
+                customer_id: sale.customer_id,
+                total_amount: sale.total_amount,
+                payment_method: sale.payment_method,
+                status: sale.status,
+                timestamp: sale.timestamp,
+                created_by: session.user.id,
+                store_id: "9ddf957b-327f-4b93-9374-7455d2a7480b"
+              })
+              .select()
+              .single();
+
+            if (saleError) throw saleError;
+
+            // Update sale with the generated UUID
+            sale.id = saleData.id;
+            sale.items = sale.items.map(item => ({ ...item, sale_id: saleData.id }));
+
+            // Insert sale items
+            const { error: itemsError } = await supabase
+              .from('sale_items')
+              .insert(sale.items.map(item => ({
+                sale_id: saleData.id,
+                product_id: item.product_id,
+                product_name: item.product_name,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                total_line: item.total_line
+              })));
+
+            if (itemsError) throw itemsError;
+
+            // Update stock quantities in store_inventory
+            for (const item of sale.items) {
+              // Fetch current stock
+              const { data: currentProduct, error: fetchError } = await (supabase as any)
+                .from('store_inventory')
+                .select('stock_quantity')
+                .eq('id', item.product_id)
+                .single();
+
+              if (fetchError) throw fetchError;
+
+              // Update with new stock
+              const newStock = currentProduct.stock_quantity - item.quantity;
+              const { error: stockError } = await (supabase as any)
+                .from('store_inventory')
+                .update({ stock_quantity: newStock })
+                .eq('id', item.product_id);
+
+              if (stockError) throw stockError;
             }
-            return product;
-          });
-          
-          set({
-            sales: [...get().sales, sale],
-            products: updatedProducts,
-            pendingOrders: pendingOrders.map(o =>
-              o.id === orderId ? { ...o, status: 'confirmed' as const } : o
-            )
-          });
+
+            // Update local state
+            const updatedProducts = products.map(product => {
+              const saleItem = saleItems.find(item => item.productId === product.id);
+              if (saleItem) {
+                return {
+                  ...product,
+                  stock_quantity: product.stock_quantity - saleItem.quantity
+                };
+              }
+              return product;
+            });
+
+            set({
+              sales: [...get().sales, sale],
+              products: updatedProducts,
+              pendingOrders: pendingOrders.map(o =>
+                o.id === orderId ? { ...o, status: 'confirmed' as const } : o
+              )
+            });
+          } catch (error) {
+            console.error('Error confirming order:', error);
+            throw error;
+          }
         }
       },
       
