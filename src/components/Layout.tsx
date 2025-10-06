@@ -115,29 +115,33 @@ export const Layout = () => {
               <Package className="h-4 w-4" />
               <span className="hidden sm:inline">Inventory</span>
             </TabsTrigger>
-            <TabsTrigger value="suppliers" className="flex items-center gap-2">
-              <Truck className="h-4 w-4" />
-              <span className="hidden sm:inline">Suppliers</span>
-            </TabsTrigger>
+            {isAdmin && (
+              <>
+                <TabsTrigger value="suppliers" className="flex items-center gap-2">
+                  <Truck className="h-4 w-4" />
+                  <span className="hidden sm:inline">Suppliers</span>
+                </TabsTrigger>
+                <TabsTrigger value="orders" className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="hidden sm:inline">Orders</span>
+                </TabsTrigger>
+                <TabsTrigger value="reports" className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Reports</span>
+                </TabsTrigger>
+                <TabsTrigger value="backup" className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  <span className="hidden sm:inline">Backup</span>
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="flex items-center gap-2">
+                  <SettingsIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Settings</span>
+                </TabsTrigger>
+              </>
+            )}
             <TabsTrigger value="customers" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Customers</span>
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Orders</span>
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Reports</span>
-            </TabsTrigger>
-            <TabsTrigger value="backup" className="flex items-center gap-2">
-              <Database className="h-4 w-4" />
-              <span className="hidden sm:inline">Backup</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <SettingsIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Settings</span>
             </TabsTrigger>
           </TabsList>
 

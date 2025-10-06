@@ -88,7 +88,7 @@ export const POSInterface = () => {
     }, 0);
   };
 
-  const processSale = () => {
+  const processSale = async () => {
     if (cart.length === 0) {
       toast({
         title: "Error",
@@ -120,7 +120,7 @@ export const POSInterface = () => {
       }
     }
 
-    const error = completeSale(paymentMethod);
+    const error = await completeSale(paymentMethod);
     if (error) {
       toast({
         title: "Sale Failed",
