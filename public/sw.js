@@ -1,28 +1,47 @@
-const CACHE_NAME = 'wakulima-agrovet-v2';
-const urlsToCache = [];
+const CACHE_NAME = 'wakulima-agrovet-v1';
+const urlsToCache = [
+  '/',
+  '/static/js/bundle.js',
+  '/static/css/main.css',
+  '/manifest.json',
+  '/placeholder.svg'
+];
 
 // Install service worker
 self.addEventListener('install', (event) => {
-  // No pre-caching to avoid addAll failures in preview
-  self.skipWaiting();
-});
-
-// Network-first fetch with cache fallback (offline)
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('Opened cache');
+        return cache.addAll(urlsToCache);
+      })
   );
 });
 
-// Activate: clean old caches and take control immediately
+// Fetch events - serve from cache when offline
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        // Return cached version or fetch from network
+        return response || fetch(event.request);
+      }
+    )
+  );
+});
+
+// Update service worker
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    (async () => {
-      const names = await caches.keys();
-      await Promise.all(
-        names.map((name) => (name !== CACHE_NAME ? caches.delete(name) : Promise.resolve()))
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
       );
-      await self.clients.claim();
-    })()
+    })
   );
 });
