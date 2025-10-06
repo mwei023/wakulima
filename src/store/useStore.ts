@@ -259,7 +259,7 @@ export const useStore = create<StoreState>()(
             console.log('user id', user?.id);
 
             const payload: {
-              customer_id: string;
+              customer_id: string | null;
               total_amount: number;
               payment_method: 'cash' | 'mpesa' | 'credit';
               status: 'pending' | 'synced';
