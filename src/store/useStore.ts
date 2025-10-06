@@ -245,6 +245,30 @@ export const useStore = create<StoreState>()(
           try {
             const { data: { user } } = await supabase.auth.getUser();
             
+            // Guard: must be authenticated and assigned to this store to pass RLS
+            const currentUserId = user?.id;
+            if (!currentUserId) {
+              console.warn('User not authenticated - queuing sale for later sync');
+              offlineManager.queueSale(sale);
+              return;
+            }
+            const { data: assignment, error: assignmentError } = await supabase
+              .from('user_stores')
+              .select('id')
+              .eq('user_id', currentUserId)
+              .eq('store_id', sale.store_id)
+              .maybeSingle();
+            if (assignmentError) {
+              console.warn('Store assignment check failed:', assignmentError);
+              offlineManager.queueSale(sale);
+              return;
+            }
+            if (!assignment) {
+              console.warn('User not assigned to this store - queuing sale for later sync');
+              offlineManager.queueSale(sale);
+              return;
+            }
+            
             const { data: saleData, error: saleError } = await supabase
               .from('sales')
               .insert([{
