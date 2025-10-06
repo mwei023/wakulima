@@ -302,8 +302,8 @@ export const useStore = create<StoreState>()(
 
             if (itemsError) throw itemsError;
 
-            // Update stock quantities in store_inventory
-            for (const item of sale.items) {
+            // Update stock quantities in store_inventory (parallelized)
+            const stockUpdatePromises = sale.items.map(async (item) => {
               // Fetch current stock
               const { data: currentProduct, error: fetchError } = await (supabase as any)
                 .from('store_inventory')
@@ -321,7 +321,9 @@ export const useStore = create<StoreState>()(
                 .eq('id', item.product_id);
 
               if (stockError) throw stockError;
-            }
+            });
+
+            await Promise.all(stockUpdatePromises);
 
             // Update customer balance if credit
             if (paymentMethod === 'credit' && selectedCustomer) {
