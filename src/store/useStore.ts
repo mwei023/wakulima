@@ -11,6 +11,7 @@ interface StoreState {
   customers: Customer[];
   sales: Sale[];
   pendingOrders: PendingOrder[];
+  currentStoreId: string | null;
   
   // POS
   cart: CartItem[];
@@ -74,6 +75,7 @@ export const useStore = create<StoreState>()(
       customers: [],
       sales: [],
       pendingOrders: [],
+      currentStoreId: null,
       cart: [],
       selectedCustomer: null,
       syncStatus: {
@@ -95,6 +97,20 @@ export const useStore = create<StoreState>()(
               pendingOrders: [],
               selectedCustomer: cachedData.customers?.[0] || null
             });
+          }
+
+          // Get user's store assignment
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: userStore } = await supabase
+              .from('user_stores')
+              .select('store_id')
+              .eq('user_id', user.id)
+              .single();
+            
+            if (userStore) {
+              set({ currentStoreId: userStore.store_id });
+            }
           }
 
           // Then fetch fresh data from Supabase
@@ -203,6 +219,11 @@ export const useStore = create<StoreState>()(
           }
         }
 
+        const { currentStoreId } = get();
+        if (!currentStoreId) {
+          return 'No store assigned to user';
+        }
+
         const saleId = Date.now().toString();
         const sale: Sale = {
           id: saleId,
@@ -211,7 +232,7 @@ export const useStore = create<StoreState>()(
           payment_method: paymentMethod,
           status: 'pending',
           timestamp: new Date().toISOString(),
-          store_id: storeId,
+          store_id: currentStoreId,
           items: cart.map(item => ({
             id: crypto.randomUUID(),
             sale_id: saleId,
@@ -258,20 +279,14 @@ export const useStore = create<StoreState>()(
             const user = session?.user;
             console.log('user id', user?.id);
 
-            const payload: {
-              customer_id: string;
-              total_amount: number;
-              payment_method: 'cash' | 'mpesa' | 'credit';
-              status: 'pending' | 'synced';
-              timestamp: string;
-              created_by: string | null;
-            } = {
+            const payload = {
               customer_id: sale.customer_id,
               total_amount: sale.total_amount,
               payment_method: sale.payment_method,
-              status: 'pending',
+              status: 'pending' as const,
               timestamp: sale.timestamp,
-              created_by: user?.id ?? null
+              created_by: user?.id ?? null,
+              store_id: currentStoreId
             };
             console.log('sale payload', payload);
 
@@ -510,10 +525,15 @@ export const useStore = create<StoreState>()(
       
       // Orders actions
       confirmOrder: async (orderId: string, saleItems: { productId: string; quantity: number }[]) => {
-        const { pendingOrders, products } = get();
+        const { pendingOrders, products, currentStoreId } = get();
         const order = pendingOrders.find(o => o.id === orderId);
 
         if (order) {
+          if (!currentStoreId) {
+            console.error('No store assigned to user');
+            return;
+          }
+
           // Create a sale from the order
           const totalAmount = saleItems.reduce((sum, item) => {
             const product = products.find(p => p.id === item.productId);
@@ -527,7 +547,7 @@ export const useStore = create<StoreState>()(
             payment_method: 'credit', // WhatsApp orders default to credit
             status: 'pending',
             timestamp: new Date().toISOString(),
-            store_id: storeId,
+            store_id: currentStoreId,
             items: saleItems.map(item => {
               const product = products.find(p => p.id === item.productId)!;
               return {
@@ -558,7 +578,8 @@ export const useStore = create<StoreState>()(
                 payment_method: sale.payment_method,
                 status: sale.status,
                 timestamp: sale.timestamp,
-                created_by: session.user.id
+                created_by: session.user.id,
+                store_id: currentStoreId
               })
               .select()
               .single();
