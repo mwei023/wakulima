@@ -265,15 +265,13 @@ export const useStore = create<StoreState>()(
               status: 'pending' | 'synced';
               timestamp: string;
               created_by: string | null;
-              store_id: string;
             } = {
               customer_id: sale.customer_id,
               total_amount: sale.total_amount,
               payment_method: sale.payment_method,
               status: 'pending',
               timestamp: sale.timestamp,
-              created_by: user?.id ?? null,
-              store_id: "9ddf957b-327f-4b93-9374-7455d2a7480b"
+              created_by: user?.id ?? null
             };
             console.log('sale payload', payload);
 
@@ -560,8 +558,7 @@ export const useStore = create<StoreState>()(
                 payment_method: sale.payment_method,
                 status: sale.status,
                 timestamp: sale.timestamp,
-                created_by: session.user.id,
-                store_id: "9ddf957b-327f-4b93-9374-7455d2a7480b"
+                created_by: session.user.id
               })
               .select()
               .single();
