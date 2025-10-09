@@ -137,7 +137,7 @@ export const POSInterface = () => {
     } else {
       // Create sale for receipt
       const sale = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         customer_id: selectedCustomer?.id || null,
         total_amount: cartTotal,
         payment_method: paymentMethod,
@@ -146,6 +146,7 @@ export const POSInterface = () => {
         created_by: null,
         status: 'synced' as const,
         updated_at: new Date().toISOString(),
+        store_id: '', // Add store_id here, set appropriately if available
         items: cart.map(item => ({
           id: Date.now().toString() + Math.random(),
           product_id: item.product.id,

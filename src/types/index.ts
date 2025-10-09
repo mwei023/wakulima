@@ -8,6 +8,7 @@ export interface Product {
   stock_quantity: number;
   reorder_level: number;
   barcode?: string;
+  store_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +29,7 @@ export interface Sale {
   payment_method: 'cash' | 'mpesa' | 'credit';
   status: 'synced' | 'pending';
   timestamp: string;
+  store_id: string;
   items: SaleItem[];
 }
 
