@@ -279,14 +279,22 @@ export const useStore = create<StoreState>()(
             const user = session?.user;
             console.log('user id', user?.id);
 
+<<<<<<< HEAD
             const payload = {
+=======
+            const payload = {
+>>>>>>> origin/main
               customer_id: sale.customer_id,
               total_amount: sale.total_amount,
               payment_method: sale.payment_method,
               status: 'pending' as const,
               timestamp: sale.timestamp,
               created_by: user?.id ?? null,
+<<<<<<< HEAD
+              store_id: "9ddf957b-327f-4b93-9374-7455d2a7480b"
+=======
               store_id: currentStoreId
+>>>>>>> origin/main
             };
             console.log('sale payload', payload);
 
@@ -579,7 +587,11 @@ export const useStore = create<StoreState>()(
                 status: sale.status,
                 timestamp: sale.timestamp,
                 created_by: session.user.id,
+<<<<<<< HEAD
+                store_id: "9ddf957b-327f-4b93-9374-7455d2a7480b"
+=======
                 store_id: currentStoreId
+>>>>>>> origin/main
               })
               .select()
               .single();
