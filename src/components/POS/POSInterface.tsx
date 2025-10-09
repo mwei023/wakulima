@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useStore } from '@/store/useStore';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { Database } from '@/integrations/supabase/types';
 
 export const POSInterface = () => {
   const {
@@ -29,7 +30,8 @@ export const POSInterface = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'mpesa' | 'credit'>('cash');
   const [showScanner, setShowScanner] = useState(false);
-  const [lastSale, setLastSale] = useState<any>(null);
+  const [lastSale, setLastSale] = useState<null | (Database['public']['Tables']['sales']['Row'] & { items: Database['public']['Tables']['sale_items']['Row'][] })>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const businessInfo = {
@@ -47,7 +49,7 @@ export const POSInterface = () => {
   const cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const addProductToCart = (product: any) => {
+  const addProductToCart = (product: Database['public']['Tables']['products']['Row']) => {
     if (product.stock_quantity <= 0) {
       toast({
         title: "Out of Stock",
@@ -89,6 +91,8 @@ export const POSInterface = () => {
   };
 
   const processSale = async () => {
+    if (isProcessing) return;
+
     if (cart.length === 0) {
       toast({
         title: "Error",
@@ -97,6 +101,8 @@ export const POSInterface = () => {
       });
       return;
     }
+
+    setIsProcessing(true);
 
     // Check credit limit if paying with credit
     if (paymentMethod === 'credit' && selectedCustomer) {
@@ -127,6 +133,7 @@ export const POSInterface = () => {
         description: error,
         variant: "destructive"
       });
+      setIsProcessing(false);
     } else {
       // Create sale for receipt
       const sale = {
@@ -135,12 +142,20 @@ export const POSInterface = () => {
         total_amount: cartTotal,
         payment_method: paymentMethod,
         timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        created_by: null,
+        status: 'synced' as const,
+        updated_at: new Date().toISOString(),
+        store_id: '', // Add store_id here, set appropriately if available
         items: cart.map(item => ({
-          id: crypto.randomUUID(),
+          id: Date.now().toString() + Math.random(),
+          product_id: item.product.id,
           product_name: item.product.name,
           quantity: item.quantity,
           unit_price: item.product.selling_price,
-          total_line: item.total
+          total_line: item.total,
+          sale_id: Date.now().toString(),
+          created_at: new Date().toISOString()
         }))
       };
       
@@ -150,6 +165,7 @@ export const POSInterface = () => {
         description: `Sale of ${formatCurrency(cartTotal)} completed successfully`,
       });
       setPaymentMethod('cash');
+      setIsProcessing(false);
     }
   };
 
@@ -393,8 +409,8 @@ export const POSInterface = () => {
               </div>
 
               {/* Checkout Button */}
-              <Button onClick={processSale} className="w-full" size="lg">
-                Complete Sale - {formatCurrency(cartTotal)}
+              <Button onClick={processSale} disabled={isProcessing} className="w-full" size="lg">
+                {isProcessing ? 'Processing...' : `Complete Sale - ${formatCurrency(cartTotal)}`}
               </Button>
             </>
           )}
