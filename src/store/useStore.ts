@@ -279,11 +279,22 @@ export const useStore = create<StoreState>()(
             const user = session?.user;
             console.log('user id', user?.id);
 
-<<<<<<< HEAD
             const payload = {
+              customer_id: sale.customer_id,
+              total_amount: sale.total_amount,
+              payment_method: sale.payment_method,
+              status: 'pending' as const,
+              timestamp: sale.timestamp,
+              created_by: user?.id ?? null,
+              store_id: currentStoreId
+            };
+=======
+            console.log('user id', user?.id);
+
+            const payload = {
+              customer_id: sale.customer_id,
 =======
             const payload = {
->>>>>>> origin/main
               customer_id: sale.customer_id,
               total_amount: sale.total_amount,
               payment_method: sale.payment_method,
