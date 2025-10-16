@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Package, AlertTriangle, Edit, Search, Plus } from 'lucide-react';
+import { Package, AlertTriangle, Edit, Search, Plus, Database } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ import { formatCurrency } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { Product } from '@/types';
 import { CategorySelector } from './CategorySelector';
+import { populateDatabase, parsedProducts } from '../../../scripts/populateProducts.js';
+import { supabase } from '@/integrations/supabase/client';
 
 export const InventoryView = () => {
   const { products, updateStock, addProduct, updateProduct } = useStore();
@@ -22,6 +24,7 @@ export const InventoryView = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isPopulating, setIsPopulating] = useState(false);
 
   const categories = [...new Set(products.map(p => p.category).filter(cat => cat && cat.trim() !== ''))];
   
@@ -62,14 +65,14 @@ export const InventoryView = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
-      
+
       await addProduct(newProduct);
-      
+
       toast({
         title: "Product Added",
         description: `${productData.name} has been added to inventory`
       });
-      
+
       setIsAddDialogOpen(false);
     } catch (error) {
       toast({
@@ -77,6 +80,48 @@ export const InventoryView = () => {
         description: "Failed to add product",
         variant: "destructive"
       });
+    }
+  };
+
+  const handlePopulateProducts = async () => {
+    if (isPopulating) return;
+
+    setIsPopulating(true);
+    try {
+      const { currentStoreId } = useStore.getState();
+      if (!currentStoreId) {
+        toast({
+          title: "Error",
+          description: "No store assigned to user",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Starting Population",
+        description: `Populating ${parsedProducts.length} products...`
+      });
+
+      const result = await populateDatabase(supabase, currentStoreId);
+
+      toast({
+        title: "Population Complete",
+        description: `Successfully added ${result.successCount} products. ${result.errorCount} errors.`
+      });
+
+      // Refresh the data
+      await useStore.getState().loadData();
+
+    } catch (error) {
+      console.error('Population error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to populate products",
+        variant: "destructive"
+      });
+    } finally {
+      setIsPopulating(false);
     }
   };
 
@@ -134,20 +179,30 @@ export const InventoryView = () => {
         </div>
         
         {isAdmin && (
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Product
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Add New Product</DialogTitle>
-              </DialogHeader>
-              <ProductForm onSubmit={handleAddProduct} isAdmin={isAdmin} />
-            </DialogContent>
-          </Dialog>
+          <>
+            <Button
+              onClick={handlePopulateProducts}
+              disabled={isPopulating}
+              variant="outline"
+            >
+              <Database className="h-4 w-4 mr-2" />
+              {isPopulating ? 'Populating...' : `Populate Products (${parsedProducts.length})`}
+            </Button>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Product
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Add New Product</DialogTitle>
+                </DialogHeader>
+                <ProductForm onSubmit={handleAddProduct} isAdmin={isAdmin} />
+              </DialogContent>
+            </Dialog>
+          </>
         )}
       </div>
 
@@ -275,6 +330,15 @@ const ProductForm = ({
             required
           />
         </div>
+
+        <div>
+          <Label htmlFor="barcode">Barcode</Label>
+          <Input
+            id="barcode"
+            value={formData.barcode}
+            onChange={(e) => setFormData({...formData, barcode: e.target.value})}
+          />
+        </div>
         
         {isAdmin && (
           <div>
@@ -310,7 +374,7 @@ const ProductForm = ({
             required
           />
         </div>
-        
+
         {isAdmin && (
           <div>
             <Label htmlFor="reorder_level">Reorder Level</Label>
@@ -434,7 +498,7 @@ const ProductEditForm = ({
               disabled={!isAdmin}
             />
           </div>
-          
+
           <div>
             <Label htmlFor="edit-selling-price" className="text-base font-medium">Selling Price (KES)</Label>
             <Input
@@ -446,7 +510,17 @@ const ProductEditForm = ({
               className="mt-2 p-3"
             />
           </div>
-          
+
+          <div>
+            <Label htmlFor="edit-barcode" className="text-base font-medium">Barcode</Label>
+            <Input
+              id="edit-barcode"
+              value={formData.barcode}
+              onChange={(e) => setFormData({...formData, barcode: e.target.value})}
+              className="mt-2 p-3"
+            />
+          </div>
+
           {isAdmin && (
             <div>
               <Label htmlFor="edit-reorder" className="text-base font-medium">Reorder Level</Label>
