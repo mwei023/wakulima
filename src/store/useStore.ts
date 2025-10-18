@@ -121,15 +121,30 @@ export const useStore = create<StoreState>()(
             sale_items (*)
           `);
           const { data: pendingOrders } = await supabase.from('pending_orders').select('*');
-          
+
+          // Filter out products with null, undefined, or empty IDs and ensure they have required fields
+          const validProducts = (products || []).filter(product =>
+            product.id !== null &&
+            product.id !== undefined &&
+            product.id !== '' &&
+            typeof product.id === 'string' &&
+            product.name &&
+            product.category &&
+            product.unit &&
+            typeof product.selling_price === 'number' &&
+            typeof product.cost_price === 'number' &&
+            typeof product.stock_quantity === 'number' &&
+            typeof product.reorder_level === 'number'
+          );
+
           // Transform sales data to match interface
           const transformedSales = sales?.map(sale => ({
             ...sale,
             items: sale.sale_items || []
           })) || [];
-          
+
           set({
-            products: products || [],
+            products: validProducts,
             customers: customers || [],
             sales: transformedSales,
             pendingOrders: pendingOrders || [],
@@ -150,9 +165,22 @@ export const useStore = create<StoreState>()(
       
       // Cart actions
       addToCart: (product: Product, quantity: number) => {
+        if (!product.id || product.id === null || product.id === undefined || product.id === '') {
+          console.error('Cannot add product with invalid ID to cart:', product);
+          return;
+        }
+
+        // Additional validation for required fields
+        if (!product.name || !product.category || !product.unit ||
+            typeof product.selling_price !== 'number' || typeof product.cost_price !== 'number' ||
+            typeof product.stock_quantity !== 'number' || typeof product.reorder_level !== 'number') {
+          console.error('Cannot add product with missing required fields to cart:', product);
+          return;
+        }
+
         const { cart } = get();
         const existingItem = cart.find(item => item.product.id === product.id);
-        
+
         if (existingItem) {
           set({
             cart: cart.map(item =>
@@ -173,11 +201,13 @@ export const useStore = create<StoreState>()(
       },
       
       removeFromCart: (productId: string) => {
+        if (!productId || productId === null || productId === undefined || productId === '') return;
         const { cart } = get();
         set({ cart: cart.filter(item => item.product.id !== productId) });
       },
-      
+
       updateCartQuantity: (productId: string, quantity: number) => {
+        if (!productId || productId === null || productId === undefined || productId === '') return;
         const { cart } = get();
         if (quantity <= 0) {
           get().removeFromCart(productId);
@@ -205,9 +235,23 @@ export const useStore = create<StoreState>()(
       completeSale: async (paymentMethod: 'cash' | 'mpesa' | 'credit') => {
         const { cart, selectedCustomer, products, customers } = get();
 
-        if (cart.length === 0) return null;
+        // Filter cart to only include items with valid product IDs
+        const validCart = cart.filter(item =>
+          item.product.id &&
+          item.product.id !== null &&
+          item.product.id !== undefined &&
+          item.product.id !== '' &&
+          typeof item.product.id === 'string'
+        );
 
-        const totalAmount = cart.reduce((sum, item) => sum + item.total, 0);
+        if (validCart.length !== cart.length) {
+          console.warn('Removed invalid cart items');
+          set({ cart: validCart });
+        }
+
+        if (validCart.length === 0) return null;
+
+        const totalAmount = validCart.reduce((sum, item) => sum + item.total, 0);
 
         // Validate credit sale
         if (paymentMethod === 'credit') {
@@ -224,7 +268,24 @@ export const useStore = create<StoreState>()(
           return 'No store assigned to user';
         }
 
+        // Additional validation for validCart items (should be redundant but extra safety)
+        const invalidCartItems = validCart.filter(item =>
+          !item.product.name ||
+          !item.product.category ||
+          !item.product.unit ||
+          typeof item.product.selling_price !== 'number' ||
+          typeof item.product.cost_price !== 'number' ||
+          typeof item.product.stock_quantity !== 'number' ||
+          typeof item.product.reorder_level !== 'number'
+        );
+
+        if (invalidCartItems.length > 0) {
+          console.error('Invalid cart items found:', invalidCartItems);
+          throw new Error('Some items in your cart have invalid product data. Please refresh the page and try again.');
+        }
+
         const saleId = Date.now().toString();
+        console.log('Creating sale with validated cart items:', validCart);
         const sale: Sale = {
           id: saleId,
           customer_id: selectedCustomer?.id || null,
@@ -233,20 +294,21 @@ export const useStore = create<StoreState>()(
           status: 'pending',
           timestamp: new Date().toISOString(),
           store_id: currentStoreId,
-          items: cart.map(item => ({
+          items: validCart.map(item => ({
             id: crypto.randomUUID(),
             sale_id: saleId,
-            product_id: item.product.id,
+            product_id: item.product.id, // This should now be guaranteed to be valid
             product_name: item.product.name,
             quantity: item.quantity,
             unit_price: item.product.selling_price,
             total_line: item.total
           }))
         };
+        console.log('Sale items created:', sale.items);
 
         // Update stock
         const updatedProducts = products.map(product => {
-          const cartItem = cart.find(item => item.product.id === product.id);
+          const cartItem = validCart.find(item => item.product.id === product.id);
           if (cartItem) {
             return {
               ...product,
@@ -269,6 +331,13 @@ export const useStore = create<StoreState>()(
         // Save to Supabase
         const saveSale = async () => {
         try {
+            // Final validation before database insertion (should be redundant but extra safety)
+            const invalidItems = sale.items.filter(item => !item.product_id || item.product_id === null || item.product_id === undefined || item.product_id === '');
+            if (invalidItems.length > 0) {
+              console.error('Invalid items found before DB insertion:', invalidItems);
+              throw new Error('Some products have missing or invalid IDs. Please refresh the page and try again.');
+            }
+
             // Refresh session to ensure it's valid
             await supabase.auth.refreshSession();
             // Get current user for created_by field
@@ -302,24 +371,36 @@ export const useStore = create<StoreState>()(
             sale.id = saleData.id;
             sale.items = sale.items.map(item => ({ ...item, sale_id: saleData.id }));
 
-            // Insert sale items
-            const { error: itemsError } = await supabase
-              .from('sale_items')
-              .insert(sale.items.map(item => ({
+            // Insert sale items with additional validation
+            console.log('Inserting sale items:', sale.items);
+            const saleItemsToInsert = sale.items.map(item => {
+              if (!item.product_id || item.product_id === null || item.product_id === undefined || item.product_id === '') {
+                console.error('Attempting to insert sale item with invalid product_id:', item);
+                throw new Error(`Invalid product_id for item: ${item.product_name}`);
+              }
+              return {
                 sale_id: saleData.id,
                 product_id: item.product_id,
                 product_name: item.product_name,
                 quantity: item.quantity,
                 unit_price: item.unit_price,
                 total_line: item.total_line
-              })));
+              };
+            });
 
-            if (itemsError) throw itemsError;
+            const { error: itemsError } = await supabase
+              .from('sale_items')
+              .insert(saleItemsToInsert);
+
+            if (itemsError) {
+              console.error('Error inserting sale items:', itemsError);
+              throw itemsError;
+            }
 
             // Update stock quantities in store_inventory (parallelized)
             const stockUpdatePromises = sale.items.map(async (item) => {
               // Fetch current stock
-              const { data: currentProduct, error: fetchError } = await (supabase as any)
+              const { data: currentProduct, error: fetchError } = await supabase
                 .from('store_inventory')
                 .select('stock_quantity')
                 .eq('id', item.product_id)
@@ -329,7 +410,7 @@ export const useStore = create<StoreState>()(
 
               // Update with new stock
               const newStock = currentProduct.stock_quantity - item.quantity;
-              const { error: stockError } = await (supabase as any)
+              const { error: stockError } = await supabase
                 .from('store_inventory')
                 .update({ stock_quantity: newStock })
                 .eq('id', item.product_id);
@@ -371,6 +452,8 @@ export const useStore = create<StoreState>()(
           }
         });
 
+        console.log('Sale completed successfully with valid product IDs');
+
         // Cache updated data offline
         await offlineManager.cacheData(updatedProducts, updatedCustomers, [...get().sales, sale], get().syncStatus);
 
@@ -401,7 +484,7 @@ export const useStore = create<StoreState>()(
       addProduct: async (product: Product) => {
         // Save to Supabase - insert into underlying tables
         // First, insert into products_master
-        const { data: masterData, error: masterError } = await (supabase as any)
+        const { data: masterData, error: masterError } = await supabase
           .from('products_master')
           .insert({
             name: product.name,
@@ -420,7 +503,7 @@ export const useStore = create<StoreState>()(
         }
 
         // Then, insert into store_inventory
-        const { data: inventoryData, error: inventoryError } = await (supabase as any)
+        const { data: inventoryData, error: inventoryError } = await supabase
           .from('store_inventory')
           .insert({
             product_id: masterData.id,
@@ -457,7 +540,7 @@ export const useStore = create<StoreState>()(
 
         // Update in Supabase - update underlying tables
         // First, get the product_id from store_inventory
-        const { data: inventoryData, error: fetchError } = await (supabase as any)
+        const { data: inventoryData, error: fetchError } = await supabase
           .from('store_inventory')
           .select('product_id')
           .eq('id', product.id)
@@ -469,7 +552,7 @@ export const useStore = create<StoreState>()(
         }
 
         // Update products_master
-        const { error: masterError } = await (supabase as any)
+        const { error: masterError } = await supabase
           .from('products_master')
           .update({
             name: product.name,
@@ -487,7 +570,7 @@ export const useStore = create<StoreState>()(
         }
 
         // Update store_inventory
-        const { error: inventoryError } = await (supabase as any)
+        const { error: inventoryError } = await supabase
           .from('store_inventory')
           .update({
             stock_quantity: product.stock_quantity,
@@ -607,7 +690,7 @@ export const useStore = create<StoreState>()(
             // Update stock quantities in store_inventory
             for (const item of sale.items) {
               // Fetch current stock
-              const { data: currentProduct, error: fetchError } = await (supabase as any)
+              const { data: currentProduct, error: fetchError } = await supabase
                 .from('store_inventory')
                 .select('stock_quantity')
                 .eq('id', item.product_id)
@@ -617,7 +700,7 @@ export const useStore = create<StoreState>()(
 
               // Update with new stock
               const newStock = currentProduct.stock_quantity - item.quantity;
-              const { error: stockError } = await (supabase as any)
+              const { error: stockError } = await supabase
                 .from('store_inventory')
                 .update({ stock_quantity: newStock })
                 .eq('id', item.product_id);
