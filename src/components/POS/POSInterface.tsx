@@ -50,6 +50,15 @@ export const POSInterface = () => {
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const addProductToCart = (product: Database['public']['Tables']['products']['Row']) => {
+    if (!product.id || product.id === null || product.id === undefined || product.id === '') {
+      toast({
+        title: "Invalid Product",
+        description: `Product ${product.name} has an invalid ID. Please refresh the page.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (product.stock_quantity <= 0) {
       toast({
         title: "Out of Stock",
@@ -63,11 +72,20 @@ export const POSInterface = () => {
   };
 
   const updateQuantity = (productId: string, newQuantity: number) => {
+    if (!productId || productId === null || productId === undefined || productId === '') {
+      toast({
+        title: "Invalid Product",
+        description: "Cannot update quantity for product with invalid ID",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (newQuantity <= 0) {
       removeFromCart(productId);
       return;
     }
-    
+
     const product = products.find(p => p.id === productId);
     if (product && newQuantity > product.stock_quantity) {
       toast({
@@ -257,7 +275,7 @@ export const POSInterface = () => {
           
           <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
             {filteredProducts.map((product) => (
-              <Card key={product.id} className="cursor-pointer hover:bg-muted/50" onClick={() => addProductToCart(product)}>
+              <Card key={`product-${product.id}`} className="cursor-pointer hover:bg-muted/50" onClick={() => addProductToCart(product)}>
                 <CardContent className="p-3">
                   <div className="flex justify-between items-start">
                     <div>
@@ -325,8 +343,8 @@ export const POSInterface = () => {
             {cart.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">Cart is empty</p>
             ) : (
-              cart.map((item) => (
-                <div key={item.product.id} className="flex items-center justify-between p-2 border rounded">
+              cart.map((item, index) => (
+                <div key={`cart-item-${item.product.id}-${index}`} className="flex items-center justify-between p-2 border rounded">
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.product.name}</p>
                     <p className="text-xs text-muted-foreground">{formatCurrency(item.product.selling_price)} each</p>
