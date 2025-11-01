@@ -272,6 +272,17 @@ export const useStore = create<StoreState>()(
           return 'No store assigned to user';
         }
 
+        // Validate stock availability for all cart items
+        for (const item of validCart) {
+          const product = products.find(p => p.id === item.product.id);
+          if (!product) {
+            return `Product ${item.product.name} not found`;
+          }
+          if (item.quantity > product.stock_quantity) {
+            return `Insufficient stock for ${item.product.name}. Available: ${product.stock_quantity}, Requested: ${item.quantity}`;
+          }
+        }
+
         // Additional validation for validCart items (should be redundant but extra safety)
         const invalidCartItems = validCart.filter(item =>
           !item.product.name ||
