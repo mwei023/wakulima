@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useStore } from '@/store/useStore';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
-import { Database } from '@/integrations/supabase/types';
+import { Product, Sale, SaleItem } from '@/types';
 
 export const POSInterface = () => {
   const {
@@ -30,7 +30,7 @@ export const POSInterface = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'mpesa' | 'credit'>('cash');
   const [showScanner, setShowScanner] = useState(false);
-  const [lastSale, setLastSale] = useState<null | (Database['public']['Tables']['sales']['Row'] & { items: Database['public']['Tables']['sale_items']['Row'][] })>(null);
+  const [lastSale, setLastSale] = useState<Sale | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -49,7 +49,7 @@ export const POSInterface = () => {
   const cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const addProductToCart = (product: Database['public']['Tables']['products']['Row']) => {
+  const addProductToCart = (product: Product) => {
     if (!product.id || product.id === null || product.id === undefined || product.id === '') {
       toast({
         title: "Invalid Product",

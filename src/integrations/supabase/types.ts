@@ -130,59 +130,6 @@ export type Database = {
         }
         Relationships: []
       }
-      products_old_backup: {
-        Row: {
-          barcode: string | null
-          category: string
-          cost_price: number
-          created_at: string
-          id: string
-          name: string
-          reorder_level: number
-          selling_price: number
-          stock_quantity: number
-          store_id: string
-          unit: string
-          updated_at: string
-        }
-        Insert: {
-          barcode?: string | null
-          category: string
-          cost_price: number
-          created_at?: string
-          id?: string
-          name: string
-          reorder_level?: number
-          selling_price: number
-          stock_quantity?: number
-          store_id: string
-          unit: string
-          updated_at?: string
-        }
-        Update: {
-          barcode?: string | null
-          category?: string
-          cost_price?: number
-          created_at?: string
-          id?: string
-          name?: string
-          reorder_level?: number
-          selling_price?: number
-          stock_quantity?: number
-          store_id?: string
-          unit?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "products_store_id_fkey"
-            columns: ["store_id"]
-            isOneToOne: false
-            referencedRelation: "stores"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           created_at: string
@@ -367,21 +314,18 @@ export type Database = {
           id: string
           location: string | null
           name: string
-          updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
           location?: string | null
           name: string
-          updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
           location?: string | null
           name?: string
-          updated_at?: string
         }
         Relationships: []
       }
@@ -405,19 +349,16 @@ export type Database = {
       }
       user_stores: {
         Row: {
-          created_at: string
           id: string
           store_id: string
           user_id: string
         }
         Insert: {
-          created_at?: string
           id?: string
           store_id: string
           user_id: string
         }
         Update: {
-          created_at?: string
           id?: string
           store_id?: string
           user_id?: string
@@ -461,7 +402,33 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      insert_product_with_unique_barcode: {
+        Args: {
+          p_barcode?: string
+          p_category: string
+          p_cost_price: number
+          p_name: string
+          p_selling_price: number
+          p_unit: string
+        }
+        Returns: {
+          barcode: string | null
+          category: string
+          cost_price: number
+          created_at: string
+          id: string
+          name: string
+          selling_price: number
+          unit: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "products_master"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       app_role: "admin" | "cashier"

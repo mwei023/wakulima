@@ -114,7 +114,11 @@ export const useStore = create<StoreState>()(
           }
 
           // Then fetch fresh data from Supabase
-          const { data: products } = await supabase.from('products').select('*');
+          const currentStoreId = get().currentStoreId;
+          const { data: products } = await supabase
+            .from('products')
+            .select('*')
+            .eq('store_id', currentStoreId || '');
           const { data: customers } = await supabase.from('customers').select('*');
           const { data: sales } = await supabase.from('sales').select(`
             *,
@@ -482,6 +486,12 @@ export const useStore = create<StoreState>()(
       },
 
       addProduct: async (product: Product) => {
+        const { currentStoreId } = get();
+        
+        if (!currentStoreId) {
+          throw new Error('No store assigned to user');
+        }
+
         // Save to Supabase - insert into underlying tables
         // First, insert into products_master
         const { data: masterData, error: masterError } = await supabase
@@ -509,7 +519,7 @@ export const useStore = create<StoreState>()(
             product_id: masterData.id,
             stock_quantity: product.stock_quantity,
             reorder_level: product.reorder_level,
-            store_id: get().currentStoreId
+            store_id: currentStoreId
           })
           .select()
           .single();
@@ -523,6 +533,7 @@ export const useStore = create<StoreState>()(
         const newProduct = {
           ...product,
           id: inventoryData.id, // Use store_inventory.id as the product id
+          store_id: currentStoreId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };

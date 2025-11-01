@@ -9,6 +9,7 @@ export interface Product {
   reorder_level: number;
   barcode?: string;
   store_id: string;
+  product_id?: string; // The products_master.id (when needed for relationships)
   created_at: string;
   updated_at: string;
 }
