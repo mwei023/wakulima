@@ -503,20 +503,16 @@ export const useStore = create<StoreState>()(
           throw new Error('No store assigned to user');
         }
 
-        // Save to Supabase - insert into underlying tables
-        // First, insert into products_master
+        // Save to Supabase - insert into underlying tables using the function that handles empty barcodes
         const { data: masterData, error: masterError } = await supabase
-          .from('products_master')
-          .insert({
-            name: product.name,
-            category: product.category,
-            unit: product.unit,
-            selling_price: product.selling_price,
-            cost_price: product.cost_price,
-            barcode: product.barcode
-          })
-          .select()
-          .single();
+          .rpc('insert_product_with_unique_barcode', {
+            p_name: product.name,
+            p_category: product.category,
+            p_unit: product.unit,
+            p_selling_price: product.selling_price,
+            p_cost_price: product.cost_price,
+            p_barcode: product.barcode || null
+          });
 
         if (masterError) {
           console.error('Error adding to products_master:', masterError);
