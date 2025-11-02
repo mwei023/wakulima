@@ -102,24 +102,96 @@ export class OfflineManager {
     return await db.queuedSales.where('synced').equals(0).count();
   }
 
-  // Sync queued sales (mock implementation)
+  // Sync queued sales to Supabase
   async syncQueuedSales() {
     const pendingSales = await db.queuedSales.where('synced').equals(0).toArray();
     
+    // Import supabase dynamically to avoid circular deps
+    const { supabase } = await import('@/integrations/supabase/client');
+    
     for (const queuedSale of pendingSales) {
       try {
-        // Mock API call - in real implementation, send to FastAPI backend
-        console.log('Syncing sale:', queuedSale.saleData);
+        const sale = queuedSale.saleData;
         
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Insert sale into Supabase
+        const { data: saleData, error: saleError } = await supabase
+          .from('sales')
+          .insert({
+            customer_id: sale.customer_id,
+            total_amount: sale.total_amount,
+            payment_method: sale.payment_method,
+            status: 'synced',
+            timestamp: sale.timestamp,
+            store_id: sale.store_id
+          })
+          .select()
+          .single();
+
+        if (saleError) throw saleError;
+
+        // Insert sale items
+        const saleItemsToInsert = sale.items.map(item => ({
+          sale_id: saleData.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_line: item.total_line
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('sale_items')
+          .insert(saleItemsToInsert);
+
+        if (itemsError) throw itemsError;
+
+        // Update stock quantities in store_inventory
+        for (const item of sale.items) {
+          const { data: currentProduct, error: fetchError } = await supabase
+            .from('store_inventory')
+            .select('stock_quantity')
+            .eq('id', item.product_id)
+            .single();
+
+          if (fetchError) throw fetchError;
+
+          const newStock = currentProduct.stock_quantity - item.quantity;
+          const { error: stockError } = await supabase
+            .from('store_inventory')
+            .update({ stock_quantity: newStock })
+            .eq('id', item.product_id);
+
+          if (stockError) throw stockError;
+        }
+
+        // Update customer balance if credit
+        if (sale.payment_method === 'credit' && sale.customer_id) {
+          const { data: customer, error: fetchCustomerError } = await supabase
+            .from('customers')
+            .select('outstanding_balance')
+            .eq('id', sale.customer_id)
+            .single();
+
+          if (fetchCustomerError) throw fetchCustomerError;
+
+          const { error: customerError } = await supabase
+            .from('customers')
+            .update({
+              outstanding_balance: customer.outstanding_balance + sale.total_amount
+            })
+            .eq('id', sale.customer_id);
+
+          if (customerError) throw customerError;
+        }
         
         // Mark as synced
         await db.queuedSales.update(queuedSale.id!, { synced: true });
+        console.log('Successfully synced sale:', sale.id);
+        
       } catch (error) {
-        console.error('Failed to sync sale:', error);
-        // Keep in queue for retry
-        break;
+        console.error('Failed to sync sale:', queuedSale.saleData.id, error);
+        // Keep in queue for retry - continue to next sale
+        continue;
       }
     }
   }
