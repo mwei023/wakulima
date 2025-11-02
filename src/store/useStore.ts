@@ -503,20 +503,16 @@ export const useStore = create<StoreState>()(
           throw new Error('No store assigned to user');
         }
 
-        // Save to Supabase - insert into underlying tables
-        // Barcode is optional - pass null if empty to allow multiple products without barcodes
+        // Save to Supabase - insert into underlying tables using function that guarantees unique/nullable barcode
         const { data: masterData, error: masterError } = await supabase
-          .from('products_master')
-          .insert({
-            name: product.name,
-            category: product.category,
-            unit: product.unit,
-            selling_price: product.selling_price,
-            cost_price: product.cost_price,
-            barcode: product.barcode && product.barcode.trim() !== '' ? product.barcode : null
-          })
-          .select()
-          .single();
+          .rpc('insert_product_with_unique_barcode', {
+            p_name: product.name,
+            p_category: product.category,
+            p_unit: product.unit,
+            p_selling_price: product.selling_price,
+            p_cost_price: product.cost_price,
+            p_barcode: product.barcode && product.barcode.trim() !== '' ? product.barcode : null
+          });
 
         if (masterError) {
           console.error('Error adding to products_master:', masterError);
