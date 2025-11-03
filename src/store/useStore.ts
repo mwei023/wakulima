@@ -569,17 +569,24 @@ export const useStore = create<StoreState>()(
           throw fetchError;
         }
 
+        // Prepare update data, only include barcode if it's not empty
+        const updateData: any = {
+          name: product.name,
+          category: product.category,
+          unit: product.unit,
+          selling_price: product.selling_price,
+          cost_price: product.cost_price
+        };
+
+        // Only include barcode if it has a value
+        if (product.barcode && product.barcode.trim() !== '') {
+          updateData.barcode = product.barcode;
+        }
+
         // Update products_master
         const { error: masterError } = await supabase
           .from('products_master')
-          .update({
-            name: product.name,
-            category: product.category,
-            unit: product.unit,
-            selling_price: product.selling_price,
-            cost_price: product.cost_price,
-            barcode: product.barcode
-          })
+          .update(updateData)
           .eq('id', inventoryData.product_id);
 
         if (masterError) {
