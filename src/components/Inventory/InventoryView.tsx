@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Package, AlertTriangle, Edit, Search, Plus, Database } from 'lucide-react';
+import { Package, AlertTriangle, Edit, Search, Plus, Database, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,7 @@ export const InventoryView = () => {
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isPopulating, setIsPopulating] = useState(false);
+  const [isLowStockOpen, setIsLowStockOpen] = useState(true);
 
   const categories = [...new Set(products.map(p => p.category).filter(cat => cat && cat.trim() !== ''))];
   
@@ -131,26 +133,35 @@ export const InventoryView = () => {
     <div className="p-6 space-y-6">
       {/* Stock Alerts */}
       {lowStockProducts.length > 0 && (
-        <Card className="border-destructive">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              Low Stock Alert ({lowStockProducts.length} items)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {lowStockProducts.map((product) => (
-                <div key={product.id} className="p-3 border border-destructive rounded-lg">
-                  <h4 className="font-medium text-destructive">{product.name}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Stock: {product.stock_quantity} {product.unit}s (Min: {product.reorder_level})
-                  </p>
+        <Collapsible open={isLowStockOpen} onOpenChange={setIsLowStockOpen}>
+          <Card className="border-destructive">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="h-5 w-5" />
+                    Low Stock Alert ({lowStockProducts.length} items)
+                  </div>
+                  <ChevronDown className={`h-5 w-5 transition-transform ${isLowStockOpen ? '' : '-rotate-90'}`} />
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {lowStockProducts.map((product) => (
+                    <div key={product.id} className="p-3 border border-destructive rounded-lg">
+                      <h4 className="font-medium text-destructive">{product.name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Stock: {product.stock_quantity} {product.unit}s (Min: {product.reorder_level})
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       )}
 
       {/* Controls */}
