@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { 
   ShoppingCart, 
   Package, 
@@ -19,7 +20,9 @@ import {
   RefreshCw,
   LogOut,
   Truck,
-  Database
+  Database,
+  Menu,
+  User
 } from 'lucide-react';
 import { POSInterface } from '@/components/POS/POSInterface';
 import { InventoryView } from '@/components/Inventory/InventoryView';
@@ -63,17 +66,17 @@ export const Layout = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div>
-            <h1 className="text-xl font-bold text-primary">Wakulima Agrovet</h1>
-            <p className="text-sm text-muted-foreground">Kiserian, Kenya</p>
+        <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base sm:text-xl font-bold text-primary truncate">Wakulima Agrovet</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Kiserian, Kenya</p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Sync Status */}
             <Badge variant={getSyncColor() as any} className="flex items-center gap-1">
               {getSyncIcon()}
-              <span className="text-xs">
+              <span className="text-xs hidden sm:inline">
                 {!syncStatus.isOnline 
                   ? 'Offline' 
                   : syncStatus.pendingSales > 0 
@@ -83,8 +86,8 @@ export const Layout = () => {
               </span>
             </Badge>
             
-            {/* User Info */}
-            <div className="flex items-center gap-2">
+            {/* Desktop User Info */}
+            <div className="hidden lg:flex items-center gap-2">
               <ThemeToggle />
               <div className="text-right">
                 <p className="text-sm font-medium">{user?.user_metadata?.full_name || user?.email}</p>
@@ -99,6 +102,45 @@ export const Layout = () => {
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
+
+            {/* Mobile Menu */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden h-9 w-9">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[280px]">
+                <SheetHeader>
+                  <SheetTitle>Account</SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-4 mt-6">
+                  <div className="flex items-center gap-3 pb-4 border-b">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{user?.user_metadata?.full_name || user?.email}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{role || 'Loading...'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Theme</span>
+                    <ThemeToggle />
+                  </div>
+
+                  <Button 
+                    variant="outline" 
+                    onClick={handleSignOut}
+                    className="w-full justify-start gap-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
