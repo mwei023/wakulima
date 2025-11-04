@@ -1,6 +1,6 @@
 {
   "name": "Wakulima Agrovet POS",
-  "short_name": "Wakulima POS",
+  "short_name": "Wakulima",
   "description": "Offline-first Point of Sale system for Wakulima Agrovet in Kiserian, Kenya",
   "start_url": "/",
   "display": "standalone",
@@ -12,13 +12,31 @@
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "categories": ["business", "productivity", "utilities"],
