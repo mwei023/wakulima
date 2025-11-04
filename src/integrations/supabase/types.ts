@@ -402,6 +402,14 @@ export type Database = {
       }
     }
     Functions: {
+      get_user_stores: { Args: { _user_id: string }; Returns: string[] }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       insert_product_with_unique_barcode: {
         Args: {
           p_barcode?: string
@@ -428,6 +436,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      user_has_store_access: {
+        Args: { _store_id: string; _user_id: string }
+        Returns: boolean
       }
     }
     Enums: {
