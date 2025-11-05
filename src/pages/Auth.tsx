@@ -53,7 +53,15 @@ export default function Auth() {
         password,
       });
       
-      if (error) throw error;
+      if (error) {
+        // Log failed login attempt
+        await supabase.from('failed_login_attempts').insert({
+          email,
+          ip_address: null,
+          user_agent: navigator.userAgent
+        });
+        throw error;
+      }
       
       navigate('/');
     } catch (error: any) {

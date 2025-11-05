@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          new_values: Json | null
+          old_values: Json | null
+          record_id: string | null
+          table_name: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string | null
+          table_name: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string | null
+          table_name?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -59,6 +98,69 @@ export type Database = {
           name?: string
           outstanding_balance?: number
           phone?: string | null
+        }
+        Relationships: []
+      }
+      failed_login_attempts: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          daily_reports: boolean | null
+          email_notifications: boolean | null
+          id: string
+          low_stock_alerts: boolean | null
+          phone_number: string | null
+          sms_notifications: boolean | null
+          updated_at: string
+          user_id: string
+          weekly_reports: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          daily_reports?: boolean | null
+          email_notifications?: boolean | null
+          id?: string
+          low_stock_alerts?: boolean | null
+          phone_number?: string | null
+          sms_notifications?: boolean | null
+          updated_at?: string
+          user_id: string
+          weekly_reports?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          daily_reports?: boolean | null
+          email_notifications?: boolean | null
+          id?: string
+          low_stock_alerts?: boolean | null
+          phone_number?: string | null
+          sms_notifications?: boolean | null
+          updated_at?: string
+          user_id?: string
+          weekly_reports?: boolean | null
         }
         Relationships: []
       }
@@ -153,6 +255,79 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      returns: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          processed_by: string | null
+          product_id: string
+          quantity: number
+          reason: string
+          refund_amount: number
+          return_type: string
+          sale_id: string
+          status: string
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          processed_by?: string | null
+          product_id: string
+          quantity: number
+          reason: string
+          refund_amount: number
+          return_type: string
+          sale_id: string
+          status?: string
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          processed_by?: string | null
+          product_id?: string
+          quantity?: number
+          reason?: string
+          refund_amount?: number
+          return_type?: string
+          sale_id?: string
+          status?: string
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "returns_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_master"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "returns_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "returns_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sale_items: {
         Row: {
@@ -257,6 +432,73 @@ export type Database = {
           {
             foreignKeyName: "sales_store_id_fkey"
             columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_transfers: {
+        Row: {
+          approved_by: string | null
+          completed_at: string | null
+          created_at: string
+          from_store_id: string
+          id: string
+          notes: string | null
+          product_id: string
+          quantity: number
+          requested_by: string
+          status: string
+          to_store_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          from_store_id: string
+          id?: string
+          notes?: string | null
+          product_id: string
+          quantity: number
+          requested_by: string
+          status?: string
+          to_store_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          from_store_id?: string
+          id?: string
+          notes?: string | null
+          product_id?: string
+          quantity?: number
+          requested_by?: string
+          status?: string
+          to_store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_transfers_from_store_id_fkey"
+            columns: ["from_store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_transfers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_master"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_transfers_to_store_id_fkey"
+            columns: ["to_store_id"]
             isOneToOne: false
             referencedRelation: "stores"
             referencedColumns: ["id"]
