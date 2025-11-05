@@ -22,7 +22,10 @@ import {
   Truck,
   Database,
   Menu,
-  User
+  User,
+  ArrowRightLeft,
+  RotateCcw,
+  Shield
 } from 'lucide-react';
 import { POSInterface } from '@/components/POS/POSInterface';
 import { InventoryView } from '@/components/Inventory/InventoryView';
@@ -32,6 +35,9 @@ import { AdvancedReports } from '@/components/Reports/AdvancedReports';
 import { SupplierManager } from '@/components/Inventory/SupplierManager';
 import { BackupManager } from '@/components/DataExport/BackupManager';
 import { Settings } from '@/components/Settings/Settings';
+import { StockTransfers } from '@/components/Operations/StockTransfers';
+import { ReturnsRefunds } from '@/components/Operations/ReturnsRefunds';
+import { AuditLog } from '@/components/Admin/AuditLog';
 
 export const Layout = () => {
   const [activeTab, setActiveTab] = useState('pos');
@@ -148,7 +154,7 @@ export const Layout = () => {
       {/* Main Content */}
       <div className="container mx-auto p-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-8 gap-1">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex lg:flex-wrap gap-1">
             <TabsTrigger value="pos" className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
               <span className="hidden sm:inline">POS</span>
@@ -157,11 +163,23 @@ export const Layout = () => {
               <Package className="h-4 w-4" />
               <span className="hidden sm:inline">Inventory</span>
             </TabsTrigger>
+            <TabsTrigger value="customers" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Customers</span>
+            </TabsTrigger>
+            <TabsTrigger value="returns" className="flex items-center gap-2">
+              <RotateCcw className="h-4 w-4" />
+              <span className="hidden sm:inline">Returns</span>
+            </TabsTrigger>
             {isAdmin && (
               <>
                 <TabsTrigger value="suppliers" className="flex items-center gap-2">
                   <Truck className="h-4 w-4" />
                   <span className="hidden sm:inline">Suppliers</span>
+                </TabsTrigger>
+                <TabsTrigger value="transfers" className="flex items-center gap-2">
+                  <ArrowRightLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Transfers</span>
                 </TabsTrigger>
                 <TabsTrigger value="orders" className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4" />
@@ -175,16 +193,16 @@ export const Layout = () => {
                   <Database className="h-4 w-4" />
                   <span className="hidden sm:inline">Backup</span>
                 </TabsTrigger>
+                <TabsTrigger value="audit" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  <span className="hidden sm:inline">Audit</span>
+                </TabsTrigger>
                 <TabsTrigger value="settings" className="flex items-center gap-2">
                   <SettingsIcon className="h-4 w-4" />
                   <span className="hidden sm:inline">Settings</span>
                 </TabsTrigger>
               </>
             )}
-            <TabsTrigger value="customers" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Customers</span>
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="pos" className="mt-6">
@@ -217,6 +235,18 @@ export const Layout = () => {
           
           <TabsContent value="settings" className="mt-6">
             <Settings />
+          </TabsContent>
+          
+          <TabsContent value="transfers" className="mt-6">
+            <StockTransfers />
+          </TabsContent>
+          
+          <TabsContent value="returns" className="mt-6">
+            <ReturnsRefunds />
+          </TabsContent>
+          
+          <TabsContent value="audit" className="mt-6">
+            <AuditLog />
           </TabsContent>
         </Tabs>
       </div>
