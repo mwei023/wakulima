@@ -1,16 +1,20 @@
-import { useState, useRef } from 'react';
-import { Search, Plus, Trash2, CreditCard, Banknote, Smartphone, Scan, Printer } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Search, Plus, Trash2, CreditCard, Banknote, Smartphone, Scan, Printer, Wifi, WifiOff, RefreshCw, AlertTriangle, AlertCircle } from 'lucide-react';
 import { BarcodeScanner } from './BarcodeScanner';
 import { Receipt } from './Receipt';
+import { ConflictResolver } from '../Offline/ConflictResolver';
 import { useReactToPrint } from 'react-to-print';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useStore } from '@/store/useStore';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { offlineManager } from '@/lib/db';
 import { Product, Sale, SaleItem } from '@/types';
 
 export const POSInterface = () => {
@@ -24,7 +28,9 @@ export const POSInterface = () => {
     updateCartQuantity,
     clearCart,
     setSelectedCustomer,
-    completeSale
+    completeSale,
+    syncStatus,
+    forceSync
   } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,6 +38,7 @@ export const POSInterface = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [lastSale, setLastSale] = useState<Sale | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const businessInfo = {
@@ -234,6 +241,62 @@ export const POSInterface = () => {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Offline Status Indicators */}
+      {!isOnline && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>You are currently offline. Sales will be queued for sync when connection is restored.</span>
+            <Badge variant="outline" className="ml-2">
+              <WifiOff className="h-3 w-3 mr-1" />
+              Offline
+            </Badge>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isOnline && syncStatus.pendingSales > 0 && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <RefreshCw className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>{syncStatus.pendingSales} sale{syncStatus.pendingSales > 1 ? 's' : ''} pending sync. Data will be synchronized automatically.</span>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">
+                {syncStatus.pendingSales} pending
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => forceSync()}
+                disabled={syncStatus.isSyncing}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${syncStatus.isSyncing ? 'animate-spin' : ''}`} />
+                Sync Now
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Network Status Badge */}
+      <div className="flex items-center justify-end gap-2">
+        <Badge variant={isOnline ? "default" : "destructive"} className="flex items-center gap-1">
+          {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+          {isOnline ? 'Online' : 'Offline'}
+        </Badge>
+        {syncStatus.pendingSales > 0 && (
+          <Badge variant="outline" className="flex items-center gap-1">
+            <RefreshCw className="h-3 w-3" />
+            {syncStatus.pendingSales} pending
+          </Badge>
+        )}
+        {syncStatus.lastSync && (
+          <span className="text-xs text-muted-foreground">
+            Last sync: {new Date(syncStatus.lastSync).toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+
       {/* Hidden Receipt for Printing */}
       {lastSale && (
         <div className="hidden">
