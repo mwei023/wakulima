@@ -69,4 +69,5 @@ export interface SyncStatus {
   isOnline: boolean;
   pendingSales: number;
   lastSync: string | null;
+  isSyncing: boolean;
 }

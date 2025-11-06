@@ -41,6 +41,28 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Background sync event
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'background-sync') {
+    event.waitUntil(syncQueuedData());
+  }
+});
+
+// Background sync function
+async function syncQueuedData() {
+  try {
+    // Import the database and sync logic
+    // Note: In service worker context, we need to handle this differently
+    // For now, we'll trigger a message to the main thread
+    const clients = await self.clients.matchAll();
+    clients.forEach(client => {
+      client.postMessage({ type: 'BACKGROUND_SYNC_TRIGGER' });
+    });
+  } catch (error) {
+    console.error('Background sync failed:', error);
+  }
+}
+
 // Fetch strategy: Cache first for assets, Network first for API
 self.addEventListener('fetch', (event) => {
   const { request } = event;
