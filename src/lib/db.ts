@@ -17,15 +17,26 @@ interface QueuedSale {
   synced: boolean;
 }
 
+interface Conflict {
+  id?: number;
+  type: 'sale' | 'product' | 'customer';
+  localData: Record<string, unknown>;
+  remoteData: Record<string, unknown>;
+  timestamp: string;
+  resolved: boolean;
+}
+
 class OfflineDatabase extends Dexie {
   offlineData!: Table<OfflineData>;
   queuedSales!: Table<QueuedSale>;
+  conflicts!: Table<Conflict>;
 
   constructor() {
     super('WakulimaAgrovetDB');
-    this.version(1).stores({
+    this.version(2).stores({
       offlineData: '++id, lastUpdated',
-      queuedSales: '++id, timestamp, synced'
+      queuedSales: '++id, timestamp, synced',
+      conflicts: '++id, type, timestamp, resolved'
     });
   }
 }
@@ -202,6 +213,60 @@ export class OfflineManager {
       throw new Error('Cannot sync while offline');
     }
     await this.syncQueuedSales();
+  }
+
+  // Conflict resolution methods
+  async detectConflicts(localData: Record<string, unknown>, remoteData: Record<string, unknown>, type: 'sale' | 'product' | 'customer'): Promise<boolean> {
+    // Simple conflict detection - check if both have been modified
+    // For now, use last-write-wins for most conflicts, but queue for manual resolution if significant differences
+    if (type === 'sale') {
+      // For sales, check if amounts differ significantly
+      const localAmount = localData.total_amount as number;
+      const remoteAmount = remoteData.total_amount as number;
+      return Math.abs(localAmount - remoteAmount) > 0.01; // More than 1 cent difference
+    }
+    // For products and customers, use timestamps if available
+    return false; // Default to no conflict for now
+  }
+
+  async queueConflict(type: 'sale' | 'product' | 'customer', localData: Record<string, unknown>, remoteData: Record<string, unknown>) {
+    await db.conflicts.add({
+      type,
+      localData,
+      remoteData,
+      timestamp: new Date().toISOString(),
+      resolved: false
+    });
+  }
+
+  async resolveConflict(conflictId: number, useLocal: boolean) {
+    const conflict = await db.conflicts.get(conflictId);
+    if (!conflict) return;
+
+    // Apply resolution (for now, just mark as resolved)
+    // In a full implementation, this would merge or choose data
+    await db.conflicts.update(conflictId, { resolved: true });
+
+    // Trigger sync if online
+    if (this.isOnline) {
+      await this.syncQueuedSales();
+    }
+  }
+
+  async getPendingConflicts(): Promise<Conflict[]> {
+    return await db.conflicts.where('resolved').equals(0).toArray();
+  }
+
+  // Background sync trigger
+  async triggerBackgroundSync() {
+    if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+      const registration = await navigator.serviceWorker.ready;
+      try {
+        await registration.sync.register('background-sync');
+      } catch (error) {
+        console.error('Background sync registration failed:', error);
+      }
+    }
   }
 }
 
