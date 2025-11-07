@@ -81,7 +81,8 @@ export const useStore = create<StoreState>()(
       syncStatus: {
         isOnline: offlineManager.getOnlineStatus(),
         pendingSales: 0,
-        lastSync: null
+        lastSync: null,
+        isSyncing: false
       },
       
       // Data loading

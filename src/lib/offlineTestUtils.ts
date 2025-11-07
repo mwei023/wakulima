@@ -138,7 +138,7 @@ export const syncFailureScenario: OfflineTestScenario = {
   },
   test: async () => {
     try {
-      await offlineManager.forceSync();
+      await offlineManager.forcSync();
       return false; // Should have thrown
     } catch (error) {
       return error.message === 'Network timeout';

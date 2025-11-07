@@ -259,10 +259,10 @@ export class OfflineManager {
 
   // Background sync trigger
   async triggerBackgroundSync() {
-    if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+    if ('serviceWorker' in navigator && 'sync' in (window as any).ServiceWorkerRegistration.prototype) {
       const registration = await navigator.serviceWorker.ready;
       try {
-        await registration.sync.register('background-sync');
+        await (registration as any).sync.register('background-sync');
       } catch (error) {
         console.error('Background sync registration failed:', error);
       }
