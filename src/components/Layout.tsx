@@ -130,14 +130,123 @@ export const Layout = () => {
                       <p className="text-xs text-muted-foreground capitalize">{role || 'Loading...'}</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Theme</span>
                     <ThemeToggle />
                   </div>
 
-                  <Button 
-                    variant="outline" 
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-muted-foreground">Navigation</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant={activeTab === 'pos' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        onClick={() => setActiveTab('pos')}
+                        className="justify-start gap-2"
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                        POS
+                      </Button>
+                      <Button
+                        variant={activeTab === 'inventory' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        onClick={() => setActiveTab('inventory')}
+                        className="justify-start gap-2"
+                      >
+                        <Package className="h-4 w-4" />
+                        Inventory
+                      </Button>
+                      <Button
+                        variant={activeTab === 'customers' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        onClick={() => setActiveTab('customers')}
+                        className="justify-start gap-2"
+                      >
+                        <Users className="h-4 w-4" />
+                        Customers
+                      </Button>
+                      <Button
+                        variant={activeTab === 'returns' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        onClick={() => setActiveTab('returns')}
+                        className="justify-start gap-2"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        Returns
+                      </Button>
+                      {isAdmin && (
+                        <>
+                          <Button
+                            variant={activeTab === 'suppliers' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setActiveTab('suppliers')}
+                            className="justify-start gap-2"
+                          >
+                            <Truck className="h-4 w-4" />
+                            Suppliers
+                          </Button>
+                          <Button
+                            variant={activeTab === 'transfers' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setActiveTab('transfers')}
+                            className="justify-start gap-2"
+                          >
+                            <ArrowRightLeft className="h-4 w-4" />
+                            Transfers
+                          </Button>
+                          <Button
+                            variant={activeTab === 'orders' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setActiveTab('orders')}
+                            className="justify-start gap-2"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            Orders
+                          </Button>
+                          <Button
+                            variant={activeTab === 'reports' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setActiveTab('reports')}
+                            className="justify-start gap-2"
+                          >
+                            <BarChart3 className="h-4 w-4" />
+                            Reports
+                          </Button>
+                          <Button
+                            variant={activeTab === 'backup' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setActiveTab('backup')}
+                            className="justify-start gap-2"
+                          >
+                            <Database className="h-4 w-4" />
+                            Backup
+                          </Button>
+                          <Button
+                            variant={activeTab === 'audit' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setActiveTab('audit')}
+                            className="justify-start gap-2"
+                          >
+                            <Shield className="h-4 w-4" />
+                            Audit
+                          </Button>
+                          <Button
+                            variant={activeTab === 'settings' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setActiveTab('settings')}
+                            className="justify-start gap-2"
+                          >
+                            <SettingsIcon className="h-4 w-4" />
+                            Settings
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="outline"
                     onClick={handleSignOut}
                     className="w-full justify-start gap-2"
                   >
@@ -154,7 +263,7 @@ export const Layout = () => {
       {/* Main Content */}
       <div className="container mx-auto p-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex lg:flex-wrap gap-1">
+          <TabsList className="hidden lg:flex lg:w-auto lg:inline-flex lg:flex-wrap gap-1">
             <TabsTrigger value="pos" className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
               <span className="hidden sm:inline">POS</span>

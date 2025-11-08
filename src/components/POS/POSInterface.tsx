@@ -278,24 +278,7 @@ export const POSInterface = () => {
         </Alert>
       )}
 
-      {/* Network Status Badge */}
-      <div className="flex items-center justify-end gap-2">
-        <Badge variant={isOnline ? "default" : "destructive"} className="flex items-center gap-1">
-          {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-          {isOnline ? 'Online' : 'Offline'}
-        </Badge>
-        {syncStatus.pendingSales > 0 && (
-          <Badge variant="outline" className="flex items-center gap-1">
-            <RefreshCw className="h-3 w-3" />
-            {syncStatus.pendingSales} pending
-          </Badge>
-        )}
-        {syncStatus.lastSync && (
-          <span className="text-xs text-muted-foreground">
-            Last sync: {new Date(syncStatus.lastSync).toLocaleTimeString()}
-          </span>
-        )}
-      </div>
+
 
       {/* Hidden Receipt for Printing */}
       {lastSale && (
