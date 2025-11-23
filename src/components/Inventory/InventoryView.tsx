@@ -191,14 +191,7 @@ export const InventoryView = () => {
         
         {isAdmin && (
           <>
-            <Button
-              onClick={handlePopulateProducts}
-              disabled={isPopulating}
-              variant="outline"
-            >
-              <Database className="h-4 w-4 mr-2" />
-              {isPopulating ? 'Populating...' : `Populate Products (${parsedProducts.length})`}
-            </Button>
+            
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
