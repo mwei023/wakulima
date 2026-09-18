@@ -17,7 +17,7 @@ interface AuditLog {
   table_name: string;
   record_id: string;
   old_values: Record<string, unknown>;
-new_values: Record<string, unknown>;
+  new_values: Record<string, unknown>;
   ip_address: string;
   user_agent: string;
   created_at: string;
@@ -50,7 +50,7 @@ export const AuditLog = () => {
 
       if (error) throw error;
       setLogs(data || []);
-    } catch (error: any) {
+      } catch (error: unknown) {
       console.error('Error loading audit logs:', error);
       toast({
         title: 'Error',
