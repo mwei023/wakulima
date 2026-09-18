@@ -196,7 +196,7 @@ export const AuditLog = () => {
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant={getActionColor(log.action) as any}>
+                      <Badge variant={getActionColor(log.action)}>
                         {log.action.replace(/_/g, ' ')}
                       </Badge>
                       <span className="text-sm text-muted-foreground">on {log.table_name}</span>
