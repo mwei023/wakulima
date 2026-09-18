@@ -50,7 +50,7 @@ export const AuditLog = () => {
 
       if (error) throw error;
       setLogs(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading audit logs:', error);
       toast({
         title: 'Error',
