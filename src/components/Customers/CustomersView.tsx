@@ -15,7 +15,7 @@ export const CustomersView = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+const [selectedCustomer, setSelectedCustomer] = useState<unknown>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [newCustomer, setNewCustomer] = useState({
     name: '',
