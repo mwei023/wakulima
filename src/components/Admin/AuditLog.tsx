@@ -16,8 +16,8 @@ interface AuditLog {
   action: string;
   table_name: string;
   record_id: string;
-  old_values: any;
-  new_values: any;
+  old_values: Record<string, unknown>;
+  new_values: Record<string, unknown>;
   ip_address: string;
   user_agent: string;
   created_at: string;
@@ -50,7 +50,7 @@ export const AuditLog = () => {
 
       if (error) throw error;
       setLogs(data || []);
-    } catch (error: any) {
+      } catch (error: unknown) {
       console.error('Error loading audit logs:', error);
       toast({
         title: 'Error',
@@ -196,7 +196,7 @@ export const AuditLog = () => {
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant={getActionColor(log.action) as any}>
+                      <Badge variant={getActionColor(log.action)}>
                         {log.action.replace(/_/g, ' ')}
                       </Badge>
                       <span className="text-sm text-muted-foreground">on {log.table_name}</span>
