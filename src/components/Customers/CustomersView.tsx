@@ -66,15 +66,15 @@ const [selectedCustomer, setSelectedCustomer] = useState<unknown>(null);
     }
   };
 
-  const getCreditStatus = (customer: any) => {
+  const getCreditStatus = (customer: Customer) => {
     if (customer.outstanding_balance === 0) {
-      return { status: 'Clear', variant: 'default' };
+      if (customer.outstanding_balance === 0) {
+    return { status: 'Clear', variant: 'default' };
     }
-    if (customer.outstanding_balance > customer.credit_limit) {
-      return { status: 'Over Limit', variant: 'destructive' };
+      if (customer.outstanding_balance > customer.credit_limit) {
+    return { status: 'Over Limit', variant: 'destructive' };
     }
-    return { status: 'Has Credit', variant: 'secondary' };
-  };
+  return { status: 'Has Credit', variant: 'secondary' };
 
   return (
     <div className="space-y-6">
