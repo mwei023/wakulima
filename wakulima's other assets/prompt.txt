@@ -1,0 +1,929 @@
+{
+  "feeds": {
+    "growers": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 3300, "profit_margin": 2100, "selling_price": 5400},
+        {"pack_size": "20kg", "cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+        {"pack_size": "10kg", "cost_price": 3000, "profit_margin": 0, "selling_price": 3000}
+      ]
+    },
+    "kienyeji_std": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 2000, "profit_margin": 440, "selling_price": 2440},
+        {"pack_size": "20kg", "cost_price": 3000, "profit_margin": 2000, "selling_price": 5000},
+        {"pack_size": "10kg", "cost_price": 6000, "profit_margin": 2000, "selling_price": 8000}
+      ]
+    },
+    "kienyeji_premium": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 1000, "profit_margin": 3000, "selling_price": 4000},
+        {"pack_size": "20kg", "cost_price": 1000, "profit_margin": 2000, "selling_price": 3000},
+        {"pack_size": "10kg", "cost_price": 2000, "profit_margin": 0, "selling_price": 2000}
+      ]
+    },
+    "layers": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 1600, "profit_margin": 500, "selling_price": 2100},
+        {"pack_size": "20kg", "cost_price": 0, "profit_margin": 0, "selling_price": 0},
+        {"pack_size": "10kg", "cost_price": 4000, "profit_margin": 0, "selling_price": 4000}
+      ]
+    },
+    "dairy_meal": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 3000, "profit_margin": 460, "selling_price": 3460},
+        {"pack_size": "20kg", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+        {"pack_size": "10kg", "cost_price": 4000, "profit_margin": 2000, "selling_price": 6000}
+      ]
+    },
+    "finisher_pellet": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 4320, "profit_margin": 2400, "selling_price": 6720}
+      ]
+    },
+    "finisher_mash": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 2000, "profit_margin": 700, "selling_price": 2700}
+      ]
+    },
+    "starter_crumbs": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 2100, "profit_margin": 1150, "selling_price": 3250}
+      ]
+    },
+    "starter_mash": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 1130, "profit_margin": 1320, "selling_price": 2450}
+      ]
+    },
+    "chick_mash": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 3140, "profit_margin": 1100, "selling_price": 4240},
+        {"pack_size": "20kg", "cost_price": 0, "profit_margin": 2000, "selling_price": 2000},
+        {"pack_size": "10kg", "cost_price": 5000, "profit_margin": 2000, "selling_price": 7000}
+      ]
+    },
+    "rabbit_pellet": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 2000, "profit_margin": 1400, "selling_price": 3400}
+      ]
+    },
+    "nguvu_meal": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+      ]
+    },
+    "calf_pellet": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 2130, "profit_margin": 1350, "selling_price": 3480}
+      ]
+    }
+  },
+  "suppliers": {
+    "suswa_feeds": {
+      "products": {
+        "dog_meal": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+            {"pack_size": "20kg", "cost_price": 0, "profit_margin": 2000, "selling_price": 2000},
+            {"pack_size": "10kg", "cost_price": 4000, "profit_margin": 900, "selling_price": 4900},
+            {"pack_size": "5kg", "cost_price": 6000, "profit_margin": 3000, "selling_price": 9000}
+          ]
+        }
+      }
+    },
+    "happyland_feeds": {
+      "products": {
+        "kienyeji": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+            {"pack_size": "50kg", "cost_price": 0, "profit_margin": 3000, "selling_price": 3000},
+            {"pack_size": "20kg", "cost_price": 2000, "profit_margin": 1100, "selling_price": 3100},
+            {"pack_size": "10kg", "cost_price": 4500, "profit_margin": 4000, "selling_price": 8500}
+          ]
+        },
+        "dog_meal_hp": {
+          "units": [
+            {"pack_size": "20kg", "cost_price": 0, "profit_margin": 0, "selling_price": 0},
+            {"pack_size": "10kg", "cost_price": 4000, "profit_margin": 1000, "selling_price": 5000}
+          ]
+        }
+      }
+    },
+    "tembo_feeds": {
+      "products": {
+        "growers": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+            {"pack_size": "20kg", "cost_price": 2000, "profit_margin": 1130, "selling_price": 3130},
+            {"pack_size": "10kg", "cost_price": 3000, "profit_margin": 200, "selling_price": 3200},
+            {"pack_size": "5kg", "cost_price": 2000, "profit_margin": 3000, "selling_price": 5000}
+          ]
+        },
+        "layers": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+            {"pack_size": "20kg", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+            {"pack_size": "10kg", "cost_price": 3000, "profit_margin": 1800, "selling_price": 4800},
+            {"pack_size": "5kg", "cost_price": 7000, "profit_margin": 2000, "selling_price": 9000}
+          ]
+        },
+        "dairy_meal": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+            {"pack_size": "20kg", "cost_price": 7000, "profit_margin": 1000, "selling_price": 8000},
+            {"pack_size": "10kg", "cost_price": 6000, "profit_margin": 1000, "selling_price": 7000}
+          ]
+        },
+        "kienyeji": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 2450, "profit_margin": 2000, "selling_price": 4450},
+            {"pack_size": "20kg", "cost_price": 6000, "profit_margin": 2000, "selling_price": 8000},
+            {"pack_size": "10kg", "cost_price": 10000, "profit_margin": 2700, "selling_price": 12700},
+            {"pack_size": "5kg", "cost_price": 9000, "profit_margin": 2000, "selling_price": 11000}
+          ]
+        },
+        "dairy_meal_high": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 7000, "profit_margin": 1160, "selling_price": 8160}
+          ]
+        },
+        "sow_weaner": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 7600, "profit_margin": 1160, "selling_price": 8760},
+            {"pack_size": "20kg", "cost_price": 4000, "profit_margin": 1000, "selling_price": 5000},
+            {"pack_size": "10kg", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000}
+          ]
+        },
+        "maize_germ": {
+          "units": [
+            {"pack_size": "50kg", "cost_price": 7200, "profit_margin": 2120, "selling_price": 9320}
+          ]
+        },
+        "maize_patanisho": {
+          "units": [
+            {"pack_size": "50kg", "cost_price": 2000, "profit_margin": 2800, "selling_price": 4800}
+          ]
+        },
+        "pollard": {
+          "units": [
+            {"pack_size": "50kg", "cost_price": 800, "profit_margin": 450, "selling_price": 1250}
+          ]
+        },
+        "pollard_tembo": {
+          "units": [
+            {"pack_size": "50kg", "cost_price": 0, "profit_margin": 0, "selling_price": 0}
+          ]
+        },
+        "bran": {
+          "units": [
+            {"pack_size": "40kg", "cost_price": 18130, "profit_margin": 1000, "selling_price": 19130}
+          ]
+        },
+        "broiler_finisher": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+          ]
+        },
+        "broiler_starter": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+            {"pack_size": "5kg", "cost_price": 2000, "profit_margin": 2000, "selling_price": 4000}
+          ]
+        },
+        "chick_mash": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+            {"pack_size": "20kg", "cost_price": 1000, "profit_margin": 180, "selling_price": 1180},
+            {"pack_size": "10kg", "cost_price": 2000, "profit_margin": 2000, "selling_price": 4000}
+          ]
+        },
+        "pig_finisher": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+          ]
+        },
+        "pig_grower": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 3000, "profit_margin": 0, "selling_price": 3000}
+          ]
+        }
+      }
+    },
+    "masters_feeds": {
+      "products": {
+        "km": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 1370, "profit_margin": 0, "selling_price": 1370},
+            {"pack_size": "20kg", "cost_price": 2000, "profit_margin": 2000, "selling_price": 4000},
+            {"pack_size": "10kg", "cost_price": 5000, "profit_margin": 3000, "selling_price": 8000},
+            {"pack_size": "5kg", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000}
+          ]
+        },
+        "hym": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 6000, "profit_margin": 1000, "selling_price": 7000}
+          ]
+        },
+        "s_w": {
+          "units": [
+            {"pack_size": "70kg", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+          ]
+        }
+      }
+    }
+  },
+  "fertilizers": {
+    "can_yara": {
+      "supplier": "Yara",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+      ]
+    },
+    "can_solai": {
+      "supplier": "Solai",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 3800, "profit_margin": 1150, "selling_price": 4950}
+      ]
+    },
+    "dap": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 2500, "profit_margin": 180, "selling_price": 2680}
+      ]
+    },
+    "urea": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 4420, "profit_margin": 160, "selling_price": 4580}
+      ]
+    },
+    "23_23": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 1070, "profit_margin": 160, "selling_price": 1230}
+      ]
+    },
+    "17_17": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 2300, "profit_margin": 0, "selling_price": 2300}
+      ]
+    },
+    "30_5": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 2250, "profit_margin": 1220, "selling_price": 3470}
+      ]
+    },
+    "mop": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+      ]
+    },
+    "panda_power": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+      ]
+    },
+    "yara_winner": {
+      "supplier": "Yara",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 3145, "profit_margin": 0, "selling_price": 3145}
+      ]
+    },
+    "micro_planting": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+      ]
+    },
+    "agromaster": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 2000, "profit_margin": 0, "selling_price": 2000}
+      ]
+    },
+    "nitrobar": {
+      "supplier": "Various",
+      "units": [
+        {"pack_size": "50kg", "cost_price": 2000, "profit_margin": 0, "selling_price": 2000}
+      ]
+    }
+  },
+  "seeds": {
+    "maize": {
+      "duma": {
+        "units": [
+          {"pack_size": "2kg", "cost_price": 6000, "profit_margin": 4000, "selling_price": 10000}
+        ]
+      },
+      "sungura": {
+        "units": [
+          {"pack_size": "2kg", "cost_price": 3000, "profit_margin": 0, "selling_price": 3000}
+        ]
+      },
+      "6213": {
+        "units": [
+          {"pack_size": "2kg", "cost_price": 7000, "profit_margin": 2000, "selling_price": 9000}
+        ]
+      },
+      "dh04": {
+        "units": [
+          {"pack_size": "2kg", "cost_price": 3000, "profit_margin": 4000, "selling_price": 7000}
+        ]
+      },
+      "520": {
+        "units": [
+          {"pack_size": "2kg", "cost_price": 2000, "profit_margin": 0, "selling_price": 2000}
+        ]
+      },
+      "513": {
+        "units": [
+          {"pack_size": "2kg", "cost_price": 0, "profit_margin": 0, "selling_price": 0}
+        ]
+      },
+      "dk8031": {
+        "units": [
+          {"pack_size": "2kg", "cost_price": 8000, "profit_margin": 2000, "selling_price": 10000}
+        ]
+      },
+      "dk8033": {
+        "units": [
+          {"pack_size": "2kg", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+        ]
+      },
+      "dk777": {
+        "units": [
+          {"pack_size": "2kg", "cost_price": 3000, "profit_margin": 2000, "selling_price": 5000}
+        ]
+      },
+      "haraka": {
+        "units": [
+          {"pack_size": "2kg", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+        ]
+      }
+    },
+    "beans": {
+      "kazuri": {
+        "units": [
+          {"pack_size": "2kg", "cost_price": 1000, "profit_margin": 1000, "selling_price": 2000}
+        ]
+      }
+    },
+    "vegetable_seeds": {
+      "terere": {
+        "units": [
+          {"pack_size": "10g", "cost_price": 0, "profit_margin": 200, "selling_price": 200},
+          {"pack_size": "25g", "cost_price": 0, "profit_margin": 200, "selling_price": 200}
+        ]
+      },
+      "eggplant": {
+        "units": [
+          {"pack_size": "10g", "cost_price": 0, "profit_margin": 100, "selling_price": 100},
+          {"pack_size": "25g", "cost_price": 0, "profit_margin": 100, "selling_price": 100}
+        ]
+      },
+      "saget": {
+        "units": [
+          {"pack_size": "10g", "cost_price": 0, "profit_margin": 100, "selling_price": 100},
+          {"pack_size": "25g", "cost_price": 0, "profit_margin": 100, "selling_price": 100}
+        ]
+      },
+      "bunching_onion": {
+        "units": [
+          {"pack_size": "10g", "cost_price": 0, "profit_margin": 200, "selling_price": 200},
+          {"pack_size": "25g", "cost_price": 0, "profit_margin": 100, "selling_price": 100}
+        ]
+      },
+      "butter_nut": {
+        "units": [
+          {"pack_size": "10g", "cost_price": 0, "profit_margin": 300, "selling_price": 300},
+          {"pack_size": "25g", "cost_price": 0, "profit_margin": 200, "selling_price": 200}
+        ]
+      },
+      "tomatoes": {
+        "units": [
+          {"pack_size": "10g", "cost_price": 0, "profit_margin": 200, "selling_price": 200},
+          {"pack_size": "25g", "cost_price": 0, "profit_margin": 100, "selling_price": 100}
+        ]
+      },
+      "dania": {
+        "units": [
+          {"pack_size": "500g", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+          {"pack_size": "250g", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+          {"pack_size": "50g", "cost_price": 0, "profit_margin": 0, "selling_price": 0},
+          {"pack_size": "25g", "cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+          {"pack_size": "10g", "cost_price": 3000, "profit_margin": 2000, "selling_price": 5000}
+        ]
+      },
+      "spinach": {
+        "units": [
+          {"pack_size": "500g", "cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+          {"pack_size": "250g", "cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+          {"pack_size": "100g", "cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+          {"pack_size": "50g", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+          {"pack_size": "25g", "cost_price": 2000, "profit_margin": 3000, "selling_price": 5000},
+          {"pack_size": "10g", "cost_price": 2000, "profit_margin": 1000, "selling_price": 3000}
+        ]
+      },
+      "collard": {
+        "units": [
+          {"pack_size": "500g", "cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+          {"pack_size": "250g", "cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+          {"pack_size": "100g", "cost_price": 0, "profit_margin": 0, "selling_price": 0},
+          {"pack_size": "50g", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+          {"pack_size": "25g", "cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+          {"pack_size": "10g", "cost_price": 6000, "profit_margin": 2000, "selling_price": 8000}
+        ]
+      },
+      "managu": {
+        "units": [
+          {"pack_size": "100g", "cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+          {"pack_size": "50g", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+          {"pack_size": "25g", "cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+          {"pack_size": "10g", "cost_price": 2000, "profit_margin": 1000, "selling_price": 3000}
+        ]
+      },
+      "carrot": {
+        "units": [
+          {"pack_size": "50g", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+          {"pack_size": "25g", "cost_price": 0, "profit_margin": 2000, "selling_price": 2000},
+          {"pack_size": "10g", "cost_price": 1000, "profit_margin": 1000, "selling_price": 2000}
+        ]
+      },
+      "leek": {
+        "units": [
+          {"pack_size": "10g", "cost_price": 3000, "profit_margin": 2000, "selling_price": 5000}
+        ]
+      },
+      "beetroot": {
+        "units": [
+          {"pack_size": "25g", "cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+          {"pack_size": "10g", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+        ]
+      },
+      "capsicum": {
+        "units": [
+          {"pack_size": "50g", "cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+          {"pack_size": "25g", "cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+          {"pack_size": "10g", "cost_price": 1000, "profit_margin": 2000, "selling_price": 3000}
+        ]
+      },
+      "cucumber": {
+        "units": [
+          {"pack_size": "25g", "cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+          {"pack_size": "10g", "cost_price": 2000, "profit_margin": 1000, "selling_price": 3000}
+        ]
+      },
+      "lettuce": {
+        "units": [
+          {"pack_size": "25g", "cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+          {"pack_size": "10g", "cost_price": 1000, "profit_margin": 1000, "selling_price": 2000}
+        ]
+      },
+      "cabbage": {
+        "units": [
+          {"pack_size": "50g", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+          {"pack_size": "25g", "cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+          {"pack_size": "10g", "cost_price": 3000, "profit_margin": 2000, "selling_price": 5000}
+        ]
+      },
+      "onion": {
+        "units": [
+          {"pack_size": "25g", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+        ]
+      },
+      "bombay_onion": {
+        "units": [
+          {"pack_size": "25g", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+        ]
+      },
+      "okra": {
+        "units": [
+          {"pack_size": "25g", "cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+          {"pack_size": "10g", "cost_price": 1000, "profit_margin": 1000, "selling_price": 2000}
+        ]
+      },
+      "pumpkin": {
+        "units": [
+          {"pack_size": "10g", "cost_price": 1000, "profit_margin": 1000, "selling_price": 2000}
+        ]
+      },
+      "courgette": {
+        "units": [
+          {"pack_size": "25g", "cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+          {"pack_size": "10g", "cost_price": 1000, "profit_margin": 1000, "selling_price": 2000}
+        ]
+      },
+      "mrenda": {
+        "units": [
+          {"pack_size": "25g", "cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+          {"pack_size": "10g", "cost_price": 4500, "profit_margin": 3000, "selling_price": 7500}
+        ]
+      },
+      "parsley": {
+        "units": [
+          {"pack_size": "25g", "cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+          {"pack_size": "10g", "cost_price": 1000, "profit_margin": 2000, "selling_price": 3000}
+        ]
+      },
+      "melon": {
+        "units": [
+          {"pack_size": "25g", "cost_price": 1000, "profit_margin": 1000, "selling_price": 2000}
+        ]
+      }
+    }
+  },
+  "veterinary": {
+    "feeds": {
+      "9kg": {"cost_price": 5000, "profit_margin": 5000, "selling_price": 10000},
+      "6kg": {"cost_price": 9000, "profit_margin": 3000, "selling_price": 12000},
+      "3kg": {"cost_price": 9000, "profit_margin": 1000, "selling_price": 10000},
+      "1.5kg": {"cost_price": 3000, "profit_margin": 8000, "selling_price": 11000}
+    },
+    "drinkers": {
+      "7l": {"cost_price": 4000, "profit_margin": 5000, "selling_price": 9000},
+      "3l": {"cost_price": 7000, "profit_margin": 4000, "selling_price": 11000},
+      "1.5l": {"cost_price": 6000, "profit_margin": 2000, "selling_price": 8000}
+    },
+    "pump_spare": {"cost_price": 5000, "profit_margin": 1000, "selling_price": 6000},
+    "pump_rubbers": {
+      "single": {"cost_price": 80, "profit_margin": 120, "selling_price": 200},
+      "double": {"cost_price": 80, "profit_margin": 120, "selling_price": 200}
+    },
+    "pumps": {
+      "20l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "2l": {"cost_price": 4000, "profit_margin": 1000, "selling_price": 5000},
+      "1l": {"cost_price": 7000, "profit_margin": 4000, "selling_price": 11000}
+    },
+    "poultry": {
+      "biosol_100g": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "biosol_25g": {"cost_price": 8000, "profit_margin": 0, "selling_price": 8000},
+      "tylodoxy_100g": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "tylodoxy_25g": {"cost_price": 7000, "profit_margin": 0, "selling_price": 7000},
+      "doxin_100g": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "doxin_25g": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "aliseryl_100g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "aliseryl_25g": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "esb3_100g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "esb3_25g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "vetoxy_100g": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "vetoxy_25g": {"cost_price": 10000, "profit_margin": 0, "selling_price": 10000},
+      "vitamin_100g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "vitamin_25g": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "superminovit_30g": {"cost_price": 12000, "profit_margin": 0, "selling_price": 12000},
+      "avitone": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "opticlox": {"cost_price": 6000, "profit_margin": 0, "selling_price": 6000},
+      "egocin_chick_25g": {"cost_price": 5000, "profit_margin": 0, "selling_price": 5000},
+      "chick_start_30g": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "amprolium_100g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "amprolium_25g": {"cost_price": 5000, "profit_margin": 0, "selling_price": 5000},
+      "biotrim_plus_100g": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "biotrim_plus_30g": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000}
+    },
+    "injectables": {
+      "penistrep_100ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "penistrep_50ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "multi_vitamin_100ml": {"cost_price": 6000, "profit_margin": 0, "selling_price": 6000},
+      "multi_vitamin_50ml": {"cost_price": 4000, "profit_margin": 1000, "selling_price": 5000},
+      "keniver_100ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "keniver_50ml": {"cost_price": 5000, "profit_margin": 0, "selling_price": 5000},
+      "keniver_10ml": {"cost_price": 9000, "profit_margin": 0, "selling_price": 9000},
+      "pink_eye": {"cost_price": 5000, "profit_margin": 0, "selling_price": 5000},
+      "s_dime": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "adamycin_100ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "adamycin_50ml": {"cost_price": 11000, "profit_margin": 0, "selling_price": 11000},
+      "injectable_solution_100ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "injectable_solution_50ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "cetrino_cream_24g": {"cost_price": 5000, "profit_margin": 0, "selling_price": 5000},
+      "aerosol_spray_140g": {"cost_price": 3000, "profit_margin": 1000, "selling_price": 4000}
+    },
+    "vaccines": {
+      "newcastle_plain_100d": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "newcastle_plain_200d": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "gumboro_100d": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "rabies_1d": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "parvo_1d": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "dhlp_1d": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "fowl_pox_100d": {"cost_price": 0, "profit_margin": 0, "selling_price": 0}
+    },
+    "supplements": {
+      "vital_maziwa_20kg": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "vital_maziwa_5kg": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "vital_maziwa_2kg": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "vital_maziwa_1kg": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "vital_ndama_2kg": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "vital_ndama_1kg": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "vital_joto_2kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "vital_joto_1kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "vital_dry_2kg": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "vital_dry_1kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "kondoo_5kg": {"cost_price": 0, "profit_margin": 517, "selling_price": 517},
+      "kondoo_1kg": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "maclik_super_20kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "maclik_super_10kg": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "maclik_super_5kg": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "maclik_super_2kg": {"cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+      "maclik_super_1kg": {"cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+      "maclik_plus_5kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "maclik_plus_2kg": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "maclik_plus_1kg": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "beef_10kg": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "beef_5kg": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "beef_2kg": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "dry_cow_1kg": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "extra_mali_1kg": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "mola_plus_10kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "mola_plus_5kg": {"cost_price": 8000, "profit_margin": 1000, "selling_price": 9000},
+      "molar_plus_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "supa_enzymes_10kg": {"cost_price": 4000, "profit_margin": 1000, "selling_price": 5000},
+      "supa_enzymes_5kg": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "poultry_microbes_1l": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "poultry_microbes_500ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "kupakula_advance_2kg": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "farmlick_maziwa_2kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "milk_replacer_spc_1kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "twiga_lick_m_5kg": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "twiga_lick_m_2kg": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "milk_replacer_vetpro_2kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "milk_replacer_vetpro_1kg": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "vetpro_maxima_maziwa_5kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "vetpro_maxima_maziwa_2kg": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "toxin_binder_1kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "toxin_binder_500g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "dcp_vetpro_1kg": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "dcp_vetpro_500g": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "dcp_vetpro_250g": {"cost_price": 6000, "profit_margin": 0, "selling_price": 6000},
+      "dcp_coopers_500g": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "dcp_coopers_250g": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000}
+    },
+    "milking_products": {
+      "milking_salve_norbrook_250g": {"cost_price": 2500, "profit_margin": 2000, "selling_price": 4500},
+      "milking_salve_norbrook_100g": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "milking_salve_coopers_1kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "milking_salve_coopers_400g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "milking_salve_coopers_250g": {"cost_price": 3000, "profit_margin": 2000, "selling_price": 5000},
+      "milking_salve_coopers_100g": {"cost_price": 3000, "profit_margin": 2000, "selling_price": 5000}
+    },
+    "blocks": {
+      "maziwa_3kg": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "maziwa_2kg": {"cost_price": 2000, "profit_margin": 3000, "selling_price": 5000},
+      "twigalick_2kg": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "mineral_1kg": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "mineral_2kg": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "mbuzi_block": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "nyama_2kg": {"cost_price": 6000, "profit_margin": 0, "selling_price": 6000},
+      "nyama_3kg": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "nyama_5kg": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "ndama_5kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "ndama_2kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "dry_2kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "dry_5kg": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "vitalblock_10kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "vitalblock_5kg": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "fertility_block_3kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "fertility_block_5kg": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "morendat_20kg": {"cost_price": 7000, "profit_margin": 2000, "selling_price": 9000},
+      "morendat_10kg": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "morendat_5kg": {"cost_price": 4000, "profit_margin": 3000, "selling_price": 7000},
+      "stock_lick_5kg": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "molasses": {"cost_price": 4000, "profit_margin": 1000, "selling_price": 5000}
+    },
+    "eggs_trays": {"cost_price": 7200, "profit_margin": 1720, "selling_price": 8920},
+    "fungicides": {
+      "funguran_1kg": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "funguran_500g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "victory_1kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "victory_500g": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "trinity_gold_1kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "trinity_gold_500g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "ridomilgold_1kg": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "ridomilgold_250g": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "ridomilgold_50g": {"cost_price": 5000, "profit_margin": 1000, "selling_price": 6000},
+      "isacop_1kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "isacop_500g": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "thiovit_jet_1kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "multi_k_1kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+    },
+    "herbicides": {
+      "jambo_clean_1l": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "easy_gro_vegetative_1kg": {"cost_price": 1000, "profit_margin": 2000, "selling_price": 3000},
+      "easy_gro_vegetative_500g": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "easy_gro_vegetative_250g": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "easy_gro_vegetative_120g": {"cost_price": 3000, "profit_margin": 2000, "selling_price": 5000},
+      "easy_gro_starter_1kg": {"cost_price": 1000, "profit_margin": 2000, "selling_price": 3000},
+      "easy_gro_starter_500g": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "easy_gro_starter_250g": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "easy_gro_starter_120g": {"cost_price": 2000, "profit_margin": 2000, "selling_price": 4000},
+      "easy_gro_f_f_1kg": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "easy_gro_f_f_500g": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "easy_gro_f_f_250g": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "easy_gro_f_f_120g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "easy_gro_calcium_1kg": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "easy_gro_calcium_500g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "easy_gro_calcium_250g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "agromaster_1l": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "agromaster_500ml": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "hy_rich_100ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "weedal_500ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "kausha_1l": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "kausha_500ml": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "kausha_200ml": {"cost_price": 4000, "profit_margin": 2000, "selling_price": 6000},
+      "round_up_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "round_up_300ml": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "ranger_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "ranger_250ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "ranger_100ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "profile_1l": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "profile_500ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "profile_100ml": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "score_100ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "score_20ml": {"cost_price": 3000, "profit_margin": 2000, "selling_price": 5000},
+      "voliam_targo_100ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "ortiva_100ml": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "dynamec_100ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "dynamec_10ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "lexus_100ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "engeo_100ml": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "actara_40g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "actara_8g": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "match_100ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "oberon_100ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "pegasus_100ml": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "confidor_15g": {"cost_price": 8000, "profit_margin": 2000, "selling_price": 10000},
+      "presento_100g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "icon_62_5ml": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "commander_1l": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "pentagon_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "pentagon_500ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "pentagon_250ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "pentagon_100ml": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "governor_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000}
+    },
+    "pesticides": {
+      "storm_18_4": {"cost_price": 18000, "profit_margin": 4000, "selling_price": 22000},
+      "baraki_32": {"cost_price": 32000, "profit_margin": 6000, "selling_price": 38000},
+      "goldazim_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "goldazim_500ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "goldazim_100ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "integra_100ml": {"cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+      "integra_50ml": {"cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+      "bestox_100ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "bestox_50ml": {"cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+      "escort_250ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "escort_100ml": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "escort_50ml": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "emerald_100ml": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "emerald_50ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "occasion_star_50ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "occasion_star_25ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "betafos_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "betafos_500ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "betafos_100ml": {"cost_price": 4000, "profit_margin": 1000, "selling_price": 5000},
+      "betafos_50ml": {"cost_price": 4000, "profit_margin": 1000, "selling_price": 5000},
+      "degree_max_1l": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "degree_max_100ml": {"cost_price": 2000, "profit_margin": 2000, "selling_price": 4000},
+      "degree_max_50ml": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "dudu_thrin_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "dudu_thrin_500ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "dudu_thrin_100ml": {"cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+      "dudu_thrin_50ml": {"cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+      "optimizer_100ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "optimizer_250ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "thunder_100ml": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "thunder_10ml": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "kerol_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "kerol_500ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "kerol_250ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "sulban_100ml": {"cost_price": 4000, "profit_margin": 1000, "selling_price": 5000},
+      "benocarb_100ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "plantone_100ml": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "plantone_30ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "aquawet_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "aquawet_500ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "aquawet_100ml": {"cost_price": 2000, "profit_margin": 1000, "selling_price": 3000},
+      "aquawet_30ml": {"cost_price": 4000, "profit_margin": 1000, "selling_price": 5000},
+      "atom_100ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "rock_alum_500g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "rock_alum_250g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "copper_sulphate_250g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "copper_sulphate_100g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "boric_acid_100g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "taurus_100g": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "ransom_100g": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "biosafe_1l": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "biosafe_100ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "kupacide_100ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "mastrite_500ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "mastrite_100ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "nilzan_1l": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "nilzan_500ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "nilzan_150ml": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "nilzan_125ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "albafas_500ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "albafas_120ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "albafas_40ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "curafuke_120ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "curafuke_60ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "abendazole_bolus_53": {"cost_price": 5300, "profit_margin": 8000, "selling_price": 13300},
+      "popvet_20": {"cost_price": 20000, "profit_margin": 8000, "selling_price": 28000},
+      "piperazine_30g": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "piperazine_100g": {"cost_price": 3000, "profit_margin": 1000, "selling_price": 4000},
+      "ascarex_25": {"cost_price": 25000, "profit_margin": 2000, "selling_price": 27000},
+      "ascaten_14": {"cost_price": 14000, "profit_margin": 19000, "selling_price": 33000},
+      "dudu_krin_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "dudu_krin_500ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "dudu_krin_250ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "egg_booster_400g": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "egg_booster_200g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "egg_booster_100g": {"cost_price": 1000, "profit_margin": 1000, "selling_price": 2000},
+      "broiler_booster_400g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "udder_booster_1kg": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "liquid_paraffin_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "liquid_paraffin_500ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "liquid_paraffin_100ml": {"cost_price": 6000, "profit_margin": 0, "selling_price": 6000},
+      "liquid_paraffin_50ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "s_dime_bolus_10": {"cost_price": 10000, "profit_margin": 0, "selling_price": 10000},
+      "diseptoprim_18": {"cost_price": 18000, "profit_margin": 0, "selling_price": 18000},
+      "vetzyme_28": {"cost_price": 28000, "profit_margin": 0, "selling_price": 28000}
+    },
+    "other_veterinary": {
+      "sevin_200g": {"cost_price": 7000, "profit_margin": 0, "selling_price": 7000},
+      "sevin_100g": {"cost_price": 4000, "profit_margin": 2000, "selling_price": 6000},
+      "sevin_50g": {"cost_price": 5000, "profit_margin": 0, "selling_price": 5000},
+      "almatix_250ml": {"cost_price": 6000, "profit_margin": 0, "selling_price": 6000},
+      "almatix_100ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "triatix_100ml": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "triatix_40ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "triatix_20ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "notix_40ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "vectoclor_plus_100ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "vectoclor_plus_50ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "vectoclor_plus_25ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "duodip_100ml": {"cost_price": 5000, "profit_margin": 0, "selling_price": 5000},
+      "duodip_50ml": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "duodip_20ml": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "pyrotix_20ml": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "bedlam": {"cost_price": 3000, "profit_margin": 2000, "selling_price": 5000},
+      "steladone_17_5ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "redcat": {"cost_price": 9000, "profit_margin": 3000, "selling_price": 12000},
+      "hy_propit_750g": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "hy_propit_250g": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000}
+    },
+    "miscellaneous": {
+      "magadi_50kg": {"cost_price": 33450, "profit_margin": 11050, "selling_price": 44500},
+      "magadi_10kg": {"cost_price": 6000, "profit_margin": 2000, "selling_price": 8000},
+      "watering_can": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "sheep_goat_mineral_1kg": {"cost_price": 2500, "profit_margin": 4000, "selling_price": 6500},
+      "actellic_100g": {"cost_price": 1000, "profit_margin": 2000, "selling_price": 3000},
+      "actellic_50g": {"cost_price": 7000, "profit_margin": 3000, "selling_price": 10000},
+      "skana_super_1kg": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "skana_super_500g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "skana_super_250g": {"cost_price": 2000, "profit_margin": 0, "selling_price": 2000},
+      "skana_super_100g": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "animatic_calcium_1l": {"cost_price": 1000, "profit_margin": 0, "selling_price": 1000},
+      "animatic_calcium_100ml": {"cost_price": 4000, "profit_margin": 0, "selling_price": 4000},
+      "ochong_a": {"cost_price": 47500, "profit_margin": 43000, "selling_price": 90500},
+      "sunflower": {"cost_price": 1350, "profit_margin": 12000, "selling_price": 13350},
+      "mwitemania": {"cost_price": 10000, "profit_margin": 7000, "selling_price": 17000},
+      "grits": {"cost_price": 1400, "profit_margin": 20000, "selling_price": 21400},
+      "crs": {"cost_price": 2450, "profit_margin": 23000, "selling_price": 25450},
+      "bonemeal": {"cost_price": 37600, "profit_margin": 0, "selling_price": 37600},
+      "njenga": {"cost_price": 54000, "profit_margin": 21000, "selling_price": 75000},
+      "miji": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000},
+      "maize": {"cost_price": 11500, "profit_margin": 27000, "selling_price": 38500},
+      "hay": {"cost_price": 0, "profit_margin": 0, "selling_price": 0},
+      "natural_block": {"cost_price": 22500, "profit_margin": 12000, "selling_price": 34500},
+      "wairimu": {"cost_price": 0, "profit_margin": 1000, "selling_price": 1000}
+    },
+    "farm_equipment": {
+      "syringe_10ml": {"cost_price": 9600, "profit_margin": 0, "selling_price": 9600},
+      "syringe_20ml": {"cost_price": 4700, "profit_margin": 0, "selling_price": 4700},
+      "needle_g18": {"cost_price": 9600, "profit_margin": 0, "selling_price": 9600},
+      "empty_bags_70kg": {"cost_price": 1800, "profit_margin": 0, "selling_price": 1800},
+      "empty_bags_140_plus_40": {"cost_price": 1800, "profit_margin": 0, "selling_price": 1800},
+      "empty_bags_second_76": {"cost_price": 7600, "profit_margin": 0, "selling_price": 7600},
+      "empty_bags_50kg_second": {"cost_price": 10700, "profit_margin": 0, "selling_price": 10700},
+      "storage_bags": {"cost_price": 9000, "profit_margin": 6000, "selling_price": 15000},
+      "sewing_needles": {"cost_price": 3000, "profit_margin": 0, "selling_price": 3000},
+      "rubber_rings": {"cost_price": 43000, "profit_margin": 16000, "selling_price": 59000},
+      "ropes_big": {"cost_price": 17000, "profit_margin": 4000, "selling_price": 21000},
+      "ropes_small": {"cost_price": 23000, "profit_margin": 7000, "selling_price": 30000}
+    }
+  }
+}
