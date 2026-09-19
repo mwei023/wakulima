@@ -9,6 +9,8 @@ import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import { InstallPrompt } from "./components/InstallPrompt";
+import Install from "./pages/Install";
 
 const queryClient = new QueryClient();
 
@@ -56,12 +58,14 @@ const App = () => (
         <Sonner />
         <AuthProvider>
           <BrowserRouter>
+          <InstallPrompt />
             <Routes>
               <Route path="/auth" element={
                 <PublicRoute>
                   <Auth />
                 </PublicRoute>
               } />
+              <Route path="/install" element={<Install />} />
               <Route path="/" element={
                 <ProtectedRoute>
                   <Layout />
