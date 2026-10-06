@@ -113,7 +113,7 @@ export async function processLocalSale(
       customer_id: customerId,
       total_amount: totalAmount,
       payment_method: paymentMethod,
-      status: 'pending',
+      status: 'completed',
       timestamp: new Date().toISOString(),
       store_id: storeId,
       items: items.map(item => ({ ...item, id: crypto.randomUUID(), sale_id: saleId }))
@@ -174,6 +174,9 @@ export async function createLocalReturn(input: {
   return db.transaction('rw', [db.localReturns, db.localSales], async () => {
     const sale = await db.localSales.get(input.sale_id);
     if (!sale) throw new Error('Sale not found');
+    if (sale.status === 'voided') {
+      throw new Error('Cannot return items from a voided sale');
+    }
 
     const line = sale.items.find(i => i.product_id === input.product_id);
     if (!line) throw new Error('Product was not purchased in this sale');
@@ -209,6 +212,45 @@ export async function createLocalReturn(input: {
     };
     await db.localReturns.add(entry);
     return entry;
+  });
+}
+
+// ---- Sale lifecycle ----
+// Voiding is a full reversal inside one transaction: goods go back on the
+// shelf, credit balances shrink back, the sale is marked 'voided' (kept for
+// the audit trail, excluded from money totals). Throws on any precondition
+// failure so nothing is half-applied.
+export async function voidLocalSale(
+  saleId: string,
+  reason: string,
+  userId?: string | null
+): Promise<void> {
+  await db.transaction('rw', [db.localSales, db.localProducts, db.localCustomers, db.localAudit], async () => {
+    const sale = await db.localSales.get(saleId);
+    if (!sale) throw new Error('Sale not found');
+    if (sale.status === 'voided') throw new Error('Sale has already been voided');
+
+    // Restock: the goods come back.
+    for (const item of sale.items) {
+      const product = await db.localProducts.get(item.product_id);
+      if (!product) throw new Error(`Product ${item.product_name} no longer exists; cannot void`);
+      await db.localProducts.update(item.product_id, {
+        stock_quantity: product.stock_quantity + item.quantity
+      });
+    }
+
+    // Credit reversal: only credit sales carry a balance in the system.
+    if (sale.payment_method === 'credit' && sale.customer_id) {
+      const customer = await db.localCustomers.get(sale.customer_id);
+      if (customer) {
+        await db.localCustomers.update(customer.id, {
+          outstanding_balance: Math.max(0, customer.outstanding_balance - sale.total_amount)
+        });
+      }
+    }
+
+    await db.localSales.update(saleId, { status: 'voided' });
+    await addAudit('void_sale', 'sales', saleId, { status: 'voided', reason }, userId);
   });
 }
 

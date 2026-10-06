@@ -48,7 +48,7 @@ export const saleSchema = z.object({
   customer_id: z.string().nullable(),
   total_amount: z.number().nonnegative(),
   payment_method: z.enum(['cash', 'mpesa', 'credit']),
-  status: z.enum(['synced', 'pending']),
+  status: z.enum(['completed', 'voided', 'pending', 'synced']),
   timestamp: isoDate,
   store_id: z.string().min(1),
   items: z.array(saleItemSchema),

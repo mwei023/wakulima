@@ -62,12 +62,15 @@ granted; rolling + downloadable backups in place; secrets out of history.
 
 Goal: correctness and integrity of the money paths. Features wait.
 
-### 1.1 Fix the sale lifecycle
-- [ ] Sales are created with `status: 'pending'` and **nothing ever completes
-      them** — decide the lifecycle: `completed` on successful payment capture,
-      `voided` for cancellations, and make reports filter on it.
-- [ ] Void/cancel sale flow with restock (inverse of a sale, transactional,
-      audit-logged).
+### 1.1 Fix the sale lifecycle ✅ (done — see note)
+- [x] Sales are created with `status: 'completed'`; reports, Settings and the
+      backup stats exclude `voided` sales from money totals via the
+      `activeSales` helper (legacy `'pending'`/`'synced'` values are tolerated
+      and still count — no Dexie version bump needed).
+- [x] Void/cancel sale flow with restock (inverse of a sale, transactional,
+      audit-logged): `voidLocalSale` in db.ts (restock + credit reversal +
+      `void_sale` audit entry in one transaction), store `voidSale` action,
+      returns against voided sales are blocked, 5 unit tests.
 
 ### 1.2 Concurrency and multi-device reality
 Even "local-only" apps run in two browser tabs.

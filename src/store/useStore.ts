@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Product, Customer, Sale, CartItem, PendingOrder } from '@/types';
 import { mockPendingOrders } from '@/data/mockData';
-import { offlineManager, db, seedLocal, processLocalSale } from '@/lib/db';
+import { offlineManager, db, seedLocal, processLocalSale, voidLocalSale } from '@/lib/db';
 import { logSaleTransaction, createAuditLog } from '@/lib/auditLog';
 import { STORE_ID } from '@/lib/backend';
 
@@ -33,6 +33,7 @@ interface StoreState {
 
   // Sales actions
   completeSale: (paymentMethod: 'cash' | 'mpesa' | 'credit') => Promise<string | null>;
+  voidSale: (saleId: string, reason: string) => Promise<string | null>;
 
   // Inventory actions
   updateStock: (productId: string, newQuantity: number) => void;
@@ -252,6 +253,18 @@ export const useStore = create<StoreState>()(
           return null; // Success
         } catch (error: unknown) {
           return error instanceof Error ? error.message : 'Sale failed';
+        }
+      },
+
+      // Void a sale: transactional reversal (restock + credit reversal) in db,
+      // then refresh UI state. Returns null on success, error message otherwise.
+      voidSale: async (saleId: string, reason: string) => {
+        try {
+          await voidLocalSale(saleId, reason);
+          await refreshFromDb(set as (partial: Partial<StoreState>) => void);
+          return null;
+        } catch (error: unknown) {
+          return error instanceof Error ? error.message : 'Void failed';
         }
       },
 

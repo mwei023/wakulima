@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useStore } from '@/store/useStore';
 import { useRole } from '@/hooks/useRole';
 import { toast } from '@/hooks/use-toast';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate, formatCurrency, activeSales } from '@/lib/utils';
 import { createAuditLog } from '@/lib/auditLog';
 import { createLocalReturn, updateLocalReturnStatus, getLocalReturns, LocalReturn } from '@/lib/db';
 import { Plus, RotateCcw, Check, X, DollarSign } from 'lucide-react';
@@ -78,7 +78,9 @@ export const ReturnsRefunds = () => {
 
   const sales: SaleSummary[] = useMemo(
     () =>
-      storeSales.map(s => ({
+      // Voided sales are excluded: their items were fully restocked by the
+      // void, so no further returns are possible.
+      activeSales(storeSales).map(s => ({
         id: s.id,
         customer_id: s.customer_id ?? '',
         total_amount: s.total_amount,

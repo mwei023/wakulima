@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { CategoryManager } from './CategoryManager';
 import { toast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, activeSales } from '@/lib/utils';
 import { getStorageStatus, formatBytes, StorageStatus as StorageStatusInfo } from '@/lib/storage';
 import { daysSinceLastOffDeviceBackup } from '@/lib/backupReminder';
 import type { BadgeProps } from '@/components/ui/badge';
@@ -158,7 +158,7 @@ export const Settings = () => {
           </div>
           <div className="flex justify-between">
             <span>Total Revenue:</span>
-            <span className="font-mono">{formatCurrency(sales.reduce((sum, sale) => sum + sale.total_amount, 0))}</span>
+            <span className="font-mono">{formatCurrency(activeSales(sales).reduce((sum, sale) => sum + sale.total_amount, 0))}</span>
           </div>
           <div className="flex justify-between">
             <span>App Version:</span>

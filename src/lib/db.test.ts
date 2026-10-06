@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { db, seedLocal, processLocalSale, createLocalReturn, updateLocalReturnStatus, getLocalReturns, addAudit, getAudit } from '@/lib/db';
+import { db, seedLocal, processLocalSale, createLocalReturn, updateLocalReturnStatus, getLocalReturns, addAudit, getAudit, voidLocalSale } from '@/lib/db';
 import { STORE_ID } from '@/lib/backend';
 
 async function clearAll() {
@@ -224,6 +224,83 @@ describe('returns money reversal', () => {
     const ret = await createLocalReturn({ sale_id: saleId, product_id: product.id, quantity: 1, reason: 'x', return_type: 'exchange', notes: '' });
     await updateLocalReturnStatus(ret.id, 'completed');
     expect((await db.localCustomers.get(customer.id))!.outstanding_balance).toBe(before);
+  });
+});
+
+describe('voidLocalSale', () => {
+  it('restocks items, reverses credit balance, marks voided, and audits', async () => {
+    const product = (await db.localProducts.toArray())[0];
+    const customer = (await db.localCustomers.toArray()).find(c => c.id !== 'walk-in')!;
+    const stockBefore = product.stock_quantity;
+    const balanceBefore = customer.outstanding_balance;
+
+    const saleId = await processLocalSale(
+      STORE_ID, customer.id, 'credit',
+      [{ product_id: product.id, product_name: product.name, quantity: 2, unit_price: 100, total_line: 200 }],
+      200
+    );
+    expect((await db.localProducts.get(product.id))!.stock_quantity).toBe(stockBefore - 2);
+    expect((await db.localCustomers.get(customer.id))!.outstanding_balance).toBe(balanceBefore + 200);
+
+    await voidLocalSale(saleId, 'wrong items entered', null);
+
+    expect((await db.localSales.get(saleId))!.status).toBe('voided');
+    expect((await db.localProducts.get(product.id))!.stock_quantity).toBe(stockBefore); // fully restocked
+    expect((await db.localCustomers.get(customer.id))!.outstanding_balance).toBe(balanceBefore); // credit reversed
+    const logs = await getAudit();
+    const voidEntry = logs.find(l => l.action === 'void_sale');
+    expect(voidEntry).toBeDefined();
+    expect(voidEntry!.record_id).toBe(saleId);
+    expect((voidEntry!.new_values as { reason: string }).reason).toBe('wrong items entered');
+  });
+
+  it('restocks cash sales without touching any customer balance', async () => {
+    const product = (await db.localProducts.toArray())[0];
+    const customer = (await db.localCustomers.toArray()).find(c => c.id !== 'walk-in')!;
+    const balanceBefore = customer.outstanding_balance;
+
+    const saleId = await processLocalSale(
+      STORE_ID, null, 'cash',
+      [{ product_id: product.id, product_name: product.name, quantity: 1, unit_price: product.selling_price, total_line: product.selling_price }],
+      product.selling_price
+    );
+    const afterSale = (await db.localProducts.get(product.id))!.stock_quantity;
+
+    await voidLocalSale(saleId, 'test', null);
+    expect((await db.localProducts.get(product.id))!.stock_quantity).toBe(afterSale + 1);
+    expect((await db.localCustomers.get(customer.id))!.outstanding_balance).toBe(balanceBefore);
+  });
+
+  it('rejects double-void and leaves restock totals unchanged', async () => {
+    const product = (await db.localProducts.toArray())[0];
+    const saleId = await processLocalSale(
+      STORE_ID, null, 'cash',
+      [{ product_id: product.id, product_name: product.name, quantity: 1, unit_price: product.selling_price, total_line: product.selling_price }],
+      product.selling_price
+    );
+    await voidLocalSale(saleId, 'first', null);
+    const restocked = (await db.localProducts.get(product.id))!.stock_quantity;
+
+    await expect(voidLocalSale(saleId, 'second', null)).rejects.toThrow(/already been voided/);
+    expect((await db.localProducts.get(product.id))!.stock_quantity).toBe(restocked); // no double restock
+  });
+
+  it('rejects when the sale does not exist', async () => {
+    await expect(voidLocalSale('nonexistent-sale', 'x', null)).rejects.toThrow(/Sale not found/);
+  });
+
+  it('blocks returns against a voided sale', async () => {
+    const product = (await db.localProducts.toArray())[0];
+    const saleId = await processLocalSale(
+      STORE_ID, null, 'cash',
+      [{ product_id: product.id, product_name: product.name, quantity: 1, unit_price: product.selling_price, total_line: product.selling_price }],
+      product.selling_price
+    );
+    await voidLocalSale(saleId, 'voided before return', null);
+
+    await expect(
+      createLocalReturn({ sale_id: saleId, product_id: product.id, quantity: 1, reason: 'x', return_type: 'refund', notes: '' })
+    ).rejects.toThrow(/voided sale/);
   });
 });
 

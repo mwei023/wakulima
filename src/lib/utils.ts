@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { Sale } from '@/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -22,4 +23,9 @@ export function formatDate(date: string | Date): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(date));
+}
+
+/** Sales that count toward money totals: everything except voided ones. */
+export function activeSales(sales: Sale[]): Sale[] {
+  return sales.filter(s => s.status !== 'voided');
 }

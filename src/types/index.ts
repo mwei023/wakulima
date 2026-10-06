@@ -28,7 +28,10 @@ export interface Sale {
   customer_id: string | null;
   total_amount: number;
   payment_method: 'cash' | 'mpesa' | 'credit';
-  status: 'synced' | 'pending';
+  // Tolerant union: legacy records may say 'synced'/'pending'; lifecycle is
+  // 'completed' (counts toward money totals) or 'voided' (excluded from money
+  // totals). Not an indexed field, so no Dexie version bump is needed.
+  status: 'completed' | 'voided' | 'pending' | 'synced';
   timestamp: string;
   store_id: string;
   items: SaleItem[];

@@ -13,7 +13,7 @@ import {
   TrendingUp, DollarSign, Users, Package, AlertTriangle, 
   Calendar, Download, FileText, BarChart3 
 } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, activeSales } from '@/lib/utils';
 import type { Customer } from '@/types';
 import { DateRange } from 'react-day-picker';
 import * as XLSX from 'xlsx';
@@ -37,7 +37,7 @@ export const AdvancedReports = () => {
     });
   };
 
-  const filteredSales = getFilteredSales();
+  const filteredSales = activeSales(getFilteredSales());
 
   // Advanced Analytics
   const getDailySalesData = () => {

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, TrendingUp, DollarSign, Users, ShoppingCart, Download } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, activeSales } from '@/lib/utils';
 
 export const ReportsView = () => {
   const { sales, customers, products } = useStore();
@@ -33,10 +33,10 @@ export const ReportsView = () => {
   };
 
   const { start, end } = getDateRange();
-  const filteredSales = sales.filter(sale => {
+  const filteredSales = activeSales(sales.filter(sale => {
     const saleDate = new Date(sale.timestamp);
     return saleDate >= start && saleDate < end;
-  });
+  }));
 
   // Sales Analytics
   const totalSales = filteredSales.reduce((sum, sale) => sum + sale.total_amount, 0);

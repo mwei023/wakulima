@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useStore } from '@/store/useStore';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate, formatCurrency, activeSales } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { 
   Download, Database, FileText, Shield,
@@ -138,7 +138,7 @@ export const BackupManager = () => {
     yPos += 10;
     
     doc.setFontSize(12);
-    const totalSales = sales.reduce((sum, sale) => sum + sale.total_amount, 0);
+    const totalSales = activeSales(sales).reduce((sum, sale) => sum + sale.total_amount, 0);
     const totalProfit = sales.reduce((sum, sale) => {
       return sum + sale.items.reduce((itemSum, item) => {
         const product = products.find(p => p.id === item.product_id);
@@ -287,7 +287,7 @@ export const BackupManager = () => {
     const stockValue = products.reduce((sum, product) => 
       sum + (product.stock_quantity * product.cost_price), 0
     );
-    const totalRevenue = sales.reduce((sum, sale) => sum + sale.total_amount, 0);
+    const totalRevenue = activeSales(sales).reduce((sum, sale) => sum + sale.total_amount, 0);
 
     return {
       totalRecords: totalSize,
