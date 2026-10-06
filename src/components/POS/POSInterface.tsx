@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Trash2, CreditCard, Banknote, Smartphone, Scan, Printer, Wifi, WifiOff, RefreshCw, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Search, Plus, Trash2, CreditCard, Banknote, Smartphone, Scan, Printer, WifiOff, AlertTriangle } from 'lucide-react';
 import { BarcodeScanner } from './BarcodeScanner';
 import { Receipt } from './Receipt';
-import { ConflictResolver } from '../Offline/ConflictResolver';
 import { useReactToPrint } from 'react-to-print';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,8 +28,7 @@ export const POSInterface = () => {
     clearCart,
     setSelectedCustomer,
     completeSale,
-    syncStatus,
-    forceSync
+    currentStoreId
   } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,8 +36,14 @@ export const POSInterface = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [lastSale, setLastSale] = useState<Sale | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(() => offlineManager.getOnlineStatus());
   const receiptRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const listener = (online: boolean) => setIsOnline(online);
+    offlineManager.addStatusListener(listener);
+    return () => offlineManager.removeStatusListener(listener);
+  }, []);
 
   const businessInfo = {
     name: "Wakulima Agrovet",
@@ -129,24 +133,31 @@ export const POSInterface = () => {
 
     setIsProcessing(true);
 
+    // Snapshot cart before completeSale clears it
+    const cartSnapshot = [...cart];
+    const totalSnapshot = cartTotal;
+    const customerSnapshot = selectedCustomer;
+
     // Check credit limit if paying with credit
-    if (paymentMethod === 'credit' && selectedCustomer) {
-      if (selectedCustomer.id === 'walk-in') {
+    if (paymentMethod === 'credit' && customerSnapshot) {
+      if (customerSnapshot.id === 'walk-in') {
         toast({
           title: "Error", 
           description: "Credit sales require a registered customer",
           variant: "destructive"
         });
+        setIsProcessing(false);
         return;
       }
       
-      const newBalance = selectedCustomer.outstanding_balance + cartTotal;
-      if (newBalance > selectedCustomer.credit_limit) {
+      const newBalance = customerSnapshot.outstanding_balance + totalSnapshot;
+      if (newBalance > customerSnapshot.credit_limit) {
         toast({
           title: "Credit Limit Exceeded",
-          description: `Customer limit: ${formatCurrency(selectedCustomer.credit_limit)}`,
+          description: `Customer limit: ${formatCurrency(customerSnapshot.credit_limit)}`,
           variant: "destructive"
         });
+        setIsProcessing(false);
         return;
       }
     }
@@ -160,19 +171,19 @@ export const POSInterface = () => {
       });
       setIsProcessing(false);
     } else {
-      // Create sale for receipt
+      // Create sale for receipt from snapshot (completeSale clears the cart)
       const sale = {
         id: crypto.randomUUID(),
-        customer_id: selectedCustomer?.id || null,
-        total_amount: cartTotal,
+        customer_id: customerSnapshot?.id || null,
+        total_amount: totalSnapshot,
         payment_method: paymentMethod,
         timestamp: new Date().toISOString(),
         created_at: new Date().toISOString(),
         created_by: null,
         status: 'synced' as const,
         updated_at: new Date().toISOString(),
-        store_id: '', // Add store_id here, set appropriately if available
-        items: cart.map(item => ({
+        store_id: currentStoreId || '',
+        items: cartSnapshot.map(item => ({
           id: Date.now().toString() + Math.random(),
           product_id: item.product.id,
           product_name: item.product.name,
@@ -187,7 +198,7 @@ export const POSInterface = () => {
       setLastSale(sale);
       toast({
         title: "Sale Completed",
-        description: `Sale of ${formatCurrency(cartTotal)} completed successfully`,
+        description: `Sale of ${formatCurrency(totalSnapshot)} completed successfully`,
       });
       setPaymentMethod('cash');
       setIsProcessing(false);
@@ -246,7 +257,7 @@ export const POSInterface = () => {
         <Alert className="border-orange-200 bg-orange-50">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
-            <span>You are currently offline. Sales will be queued for sync when connection is restored.</span>
+            <span>You are offline. Sales are saved on this device and all features keep working.</span>
             <Badge variant="outline" className="ml-2">
               <WifiOff className="h-3 w-3 mr-1" />
               Offline
@@ -254,31 +265,6 @@ export const POSInterface = () => {
           </AlertDescription>
         </Alert>
       )}
-
-      {isOnline && syncStatus.pendingSales > 0 && (
-        <Alert className="border-blue-200 bg-blue-50">
-          <RefreshCw className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>{syncStatus.pendingSales} sale{syncStatus.pendingSales > 1 ? 's' : ''} pending sync. Data will be synchronized automatically.</span>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">
-                {syncStatus.pendingSales} pending
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => forceSync()}
-                disabled={syncStatus.isSyncing}
-              >
-                <RefreshCw className={`h-3 w-3 mr-1 ${syncStatus.isSyncing ? 'animate-spin' : ''}`} />
-                Sync Now
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
-
 
       {/* Hidden Receipt for Printing */}
       {lastSale && (

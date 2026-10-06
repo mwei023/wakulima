@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,40 +6,27 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
   Settings as SettingsIcon, 
-  RefreshCw, 
   Download, 
-  Wifi, 
   WifiOff,
   CheckCircle,
-  AlertCircle
+  HardDrive,
+  ShieldAlert,
+  ShieldCheck
 } from 'lucide-react';
 import { CategoryManager } from './CategoryManager';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
+import { getStorageStatus, formatBytes, StorageStatus as StorageStatusInfo } from '@/lib/storage';
+import { daysSinceLastOffDeviceBackup } from '@/lib/backupReminder';
+import type { BadgeProps } from '@/components/ui/badge';
 
 export const Settings = () => {
-  const { syncStatus, forceSync, sales } = useStore();
-  const [issyncing, setSyncing] = useState(false);
+  const { isOnline, sales } = useStore();
+  const [storage, setStorage] = useState<StorageStatusInfo | null>(null);
 
-  const handleForceSync = async () => {
-    setSyncing(true);
-    try {
-      await forceSync();
-      toast({
-        title: "Sync Complete",
-        description: "All pending sales have been synced",
-        variant: "default"
-      });
-    } catch (error) {
-      toast({
-        title: "Sync Failed",
-        description: "Unable to sync. Check your connection and try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setSyncing(false);
-    }
-  };
+  useEffect(() => {
+    void getStorageStatus().then(setStorage);
+  }, []);
 
   const handleExportData = () => {
     // Create CSV export of all sales
@@ -71,14 +58,12 @@ export const Settings = () => {
   };
 
   const getSyncStatusIcon = () => {
-    if (!syncStatus.isOnline) return <WifiOff className="h-4 w-4" />;
-    if (syncStatus.pendingSales > 0) return <RefreshCw className="h-4 w-4 animate-spin" />;
+    if (!isOnline) return <WifiOff className="h-4 w-4" />;
     return <CheckCircle className="h-4 w-4" />;
   };
 
   const getSyncStatusColor = () => {
-    if (!syncStatus.isOnline) return 'destructive';
-    if (syncStatus.pendingSales > 0) return 'warning';
+    if (!isOnline) return 'destructive';
     return 'default';
   };
 
@@ -89,7 +74,7 @@ export const Settings = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <SettingsIcon className="h-5 w-5" />
-            System Status & Sync
+            System Status
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -98,40 +83,51 @@ export const Settings = () => {
               {getSyncStatusIcon()}
               <span className="font-medium">Connection Status</span>
             </div>
-            <Badge variant={getSyncStatusColor() as any}>
-              {!syncStatus.isOnline 
-                ? 'Offline' 
-                : syncStatus.pendingSales > 0 
-                  ? `${syncStatus.pendingSales} Pending`
-                  : 'All Synced'
-              }
+            <Badge variant={getSyncStatusColor() as BadgeProps['variant']}>
+              {isOnline ? 'Online' : 'Offline'}
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            All data is stored on this device. Sales work with or without internet.
+          </p>
+
+          {/* Data safety: persistence + last off-device backup */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <HardDrive className="h-4 w-4" />
+              <span className="font-medium">Data Protection</span>
+            </div>
+            {storage === null ? (
+              <Badge>Checking…</Badge>
+            ) : storage.persisted ? (
+              <Badge variant="success">Protected</Badge>
+            ) : (
+              <Badge variant="destructive">Eviction possible</Badge>
+            )}
+          </div>
+          {storage !== null && (
+            <p className="text-sm text-muted-foreground">
+              {storage.persisted
+                ? 'The browser will not delete your sales data to free space.'
+                : 'The browser MAY delete all app data under storage pressure. Install the app as a PWA and reopen it to grant persistent storage.'}
+              {storage.usageBytes !== null && storage.quotaBytes !== null && (
+                <> Using {formatBytes(storage.usageBytes)} of {formatBytes(storage.quotaBytes)}.</>
+              )}
+            </p>
+          )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {daysSinceLastOffDeviceBackup() === null ? <ShieldAlert className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+              <span className="font-medium">Last off-device backup</span>
+            </div>
+            <Badge variant={daysSinceLastOffDeviceBackup() === null ? 'destructive' : 'secondary'}>
+              {daysSinceLastOffDeviceBackup() === null
+                ? 'Never'
+                : `${daysSinceLastOffDeviceBackup()} day${daysSinceLastOffDeviceBackup() === 1 ? '' : 's'} ago`}
             </Badge>
           </div>
 
-          {syncStatus.pendingSales > 0 && (
-            <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg">
-              <AlertCircle className="h-4 w-4 text-warning" />
-              <span className="text-sm">
-                {syncStatus.pendingSales} sales waiting to sync when connection is restored
-              </span>
-            </div>
-          )}
-
-          {syncStatus.lastSync && (
-            <p className="text-sm text-muted-foreground">
-              Last sync: {new Date(syncStatus.lastSync).toLocaleString()}
-            </p>
-          )}
-
           <div className="flex gap-2">
-            <Button 
-              onClick={handleForceSync}
-              disabled={!syncStatus.isOnline || issyncing}
-              variant="outline"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${issyncing ? 'animate-spin' : ''}`} />
-              Force Sync
-            </Button>
             <Button 
               onClick={handleExportData}
               variant="outline"
@@ -171,12 +167,17 @@ export const Settings = () => {
           <div className="flex justify-between">
             <span>Install as App:</span>
             <Button size="sm" variant="outline" onClick={() => {
-              if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js').then(() => {
-                  toast({
-                    title: "App Ready",
-                    description: "You can now install this app on your device from your browser menu",
-                  });
+              // VitePWA (autoUpdate) registers the service worker in production
+              // builds; there is no hand-rolled /sw.js anymore.
+              if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                toast({
+                  title: "App Ready",
+                  description: "You can now install this app on your device from your browser menu",
+                });
+              } else {
+                toast({
+                  title: "Production build required",
+                  description: "Run npm run build and serve the dist/ folder, then the app can be installed",
                 });
               }
             }}>

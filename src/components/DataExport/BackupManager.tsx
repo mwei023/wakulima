@@ -1,50 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useStore } from '@/store/useStore';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { 
-  Download, Upload, Database, FileText, Shield,
-  Calendar, CheckCircle, AlertCircle, Clock
+  Download, Database, FileText, Shield,
+  Calendar, AlertCircle, Clock, Upload
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-
-interface BackupRecord {
-  id: string;
-  type: 'manual' | 'auto';
-  timestamp: string;
-  size: string;
-  status: 'completed' | 'failed' | 'in-progress';
-  includes: string[];
-}
+import { createBackupPayload, restoreFromPayload, BackupPayload } from '@/lib/backup';
+import { markManualExport } from '@/lib/backupReminder';
+import { backupPayloadSchema } from '@/lib/backupSchema';
 
 export const BackupManager = () => {
-  const { products, customers, sales, pendingOrders } = useStore();
+  const { products, customers, sales, pendingOrders, loadData } = useStore();
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
-  const [backupHistory] = useState<BackupRecord[]>([
-    {
-      id: 'backup-1',
-      type: 'manual',
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      size: '2.4 MB',
-      status: 'completed',
-      includes: ['products', 'customers', 'sales']
-    },
-    {
-      id: 'backup-2',
-      type: 'auto',
-      timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      size: '2.1 MB',
-      status: 'completed',
-      includes: ['products', 'customers', 'sales', 'orders']
-    }
-  ]);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const exportToExcel = async (dataType: 'all' | 'products' | 'customers' | 'sales') => {
     setIsExporting(true);
@@ -237,33 +214,14 @@ export const BackupManager = () => {
     });
   };
 
-  const createFullBackup = async () => {
+  /** Full-data JSON export: the off-device copy that counts as a real backup. */
+  const downloadJsonBackup = async () => {
     setIsExporting(true);
-    setExportProgress(0);
-
+    setExportProgress(25);
     try {
-      // Create comprehensive backup data
-      const backupData = {
-        timestamp: new Date().toISOString(),
-        version: '1.0',
-        data: {
-          products: products,
-          customers: customers.filter(c => c.id !== 'walk-in'),
-          sales: sales,
-          pendingOrders: pendingOrders
-        },
-        metadata: {
-          totalProducts: products.length,
-          totalCustomers: customers.filter(c => c.id !== 'walk-in').length,
-          totalSales: sales.length,
-          totalRevenue: sales.reduce((sum, sale) => sum + sale.total_amount, 0)
-        }
-      };
-
-      setExportProgress(50);
-
-      // Convert to JSON and create downloadable file
-      const jsonString = JSON.stringify(backupData, null, 2);
+      const payload = await createBackupPayload();
+      setExportProgress(60);
+      const jsonString = JSON.stringify(payload, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -273,14 +231,12 @@ export const BackupManager = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
+      markManualExport();
       setExportProgress(100);
-
       toast({
         title: "Backup Created",
         description: "Full system backup has been downloaded",
       });
-
     } catch (error) {
       console.error('Backup error:', error);
       toast({
@@ -291,6 +247,38 @@ export const BackupManager = () => {
     } finally {
       setIsExporting(false);
       setExportProgress(0);
+    }
+  };
+
+  const handleRestoreFile = async (file: File) => {
+    if (!window.confirm(
+      'Restore will REPLACE all current data (products, customers, sales, returns, audit) ' +
+      'with the contents of the backup file. Continue?'
+    )) {
+      return;
+    }
+    setIsRestoring(true);
+    try {
+      const text = await file.text();
+      const raw: unknown = JSON.parse(text);
+      const parsed = backupPayloadSchema.parse(raw) as BackupPayload;
+      await restoreFromPayload(parsed);
+      await loadData();
+      toast({
+        title: "Restore Complete",
+        description: `Restored ${parsed.products.length} products, ${parsed.sales.length} sales from ${formatDate(parsed.created_at)}`,
+      });
+    } catch (error) {
+      console.error('Restore error:', error);
+      const message = error instanceof Error ? error.message : 'File is not a valid Wakulima backup';
+      toast({
+        title: "Restore Failed",
+        description: message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsRestoring(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -456,76 +444,42 @@ export const BackupManager = () => {
                 onClick={generateBusinessReport} 
                 variant="outline" 
                 className="w-full"
-                disabled={isExporting}
+                disabled={isExporting || isRestoring}
               >
                 Business Summary Report
               </Button>
               <Button 
-                onClick={createFullBackup} 
+                onClick={downloadJsonBackup} 
                 variant="default" 
                 className="w-full"
-                disabled={isExporting}
+                disabled={isExporting || isRestoring}
               >
                 <Shield className="h-4 w-4 mr-2" />
-                Create Full Backup
+                Download Full Backup (JSON)
               </Button>
+              <Button 
+                onClick={() => fileInputRef.current?.click()} 
+                variant="outline" 
+                className="w-full"
+                disabled={isExporting || isRestoring}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {isRestoring ? 'Restoring…' : 'Restore from Backup File'}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleRestoreFile(file);
+                }}
+              />
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Backup History */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Backup History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {backupHistory.length === 0 ? (
-            <div className="text-center py-8">
-              <Database className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No Backups Yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Create your first backup to secure your business data
-              </p>
-              <Button onClick={createFullBackup}>Create Backup</Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {backupHistory.map(backup => (
-                <div key={backup.id} className="flex items-center justify-between p-3 border rounded">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-full bg-primary/10">
-                      {backup.status === 'completed' ? (
-                        <CheckCircle className="h-4 w-4 text-success" />
-                      ) : backup.status === 'failed' ? (
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                      ) : (
-                        <Clock className="h-4 w-4 text-warning" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">
-                          {backup.type === 'manual' ? 'Manual Backup' : 'Auto Backup'}
-                        </span>
-                        <Badge variant={backup.status === 'completed' ? 'default' : 'secondary'}>
-                          {backup.status}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDate(backup.timestamp)} • {backup.size} • {backup.includes.join(', ')}
-                      </p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm">
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };

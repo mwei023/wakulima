@@ -19,12 +19,14 @@ export const ReportsView = () => {
     switch (dateRange) {
       case 'today':
         return { start: today, end: new Date(today.getTime() + 24 * 60 * 60 * 1000) };
-      case 'week':
+      case 'week': {
         const weekStart = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
         return { start: weekStart, end: new Date() };
-      case 'month':
+      }
+      case 'month': {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         return { start: monthStart, end: new Date() };
+      }
       default:
         return { start: today, end: new Date(today.getTime() + 24 * 60 * 60 * 1000) };
     }
@@ -86,7 +88,7 @@ export const ReportsView = () => {
   // Low stock products
   const lowStockProducts = products.filter(p => p.stock_quantity <= p.reorder_level);
 
-  const exportToCSV = (data: any[], filename: string) => {
+  const exportToCSV = (data: Record<string, unknown>[], filename: string) => {
     const csvContent = "data:text/csv;charset=utf-8," 
       + Object.keys(data[0]).join(",") + "\n"
       + data.map(row => Object.values(row).join(",")).join("\n");

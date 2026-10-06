@@ -1,51 +1,33 @@
-import { supabase } from '@/integrations/supabase/client';
+import { db, addAudit } from '@/lib/db';
 
 export interface AuditLogEntry {
   action: string;
   table_name: string;
   record_id?: string;
-  old_values?: any;
-  new_values?: any;
+  old_values?: unknown;
+  new_values?: unknown;
 }
 
 /**
- * Create an audit log entry
- * @param entry - The audit log entry details
+ * Create a local audit log entry (IndexedDB).
  */
 export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      console.warn('Audit log: No authenticated user');
-      return;
-    }
-
-    const { error } = await supabase
-      .from('audit_logs')
-      .insert({
-        user_id: user.id,
-        action: entry.action,
-        table_name: entry.table_name,
-        record_id: entry.record_id,
-        old_values: entry.old_values,
-        new_values: entry.new_values,
-        ip_address: null, // Could be captured via edge function
-        user_agent: navigator.userAgent
-      });
-
-    if (error) {
-      console.error('Failed to create audit log:', error);
-    }
+    await addAudit(entry.action, entry.table_name, entry.record_id, entry.new_values, null, entry.old_values);
   } catch (error) {
     console.error('Error creating audit log:', error);
   }
 }
 
+/** Local audit trail for the Admin view. */
+export async function getAuditLogs(limit = 500) {
+  return db.localAudit.orderBy('created_at').reverse().limit(limit).toArray();
+}
+
 /**
  * Log a sale transaction
  */
-export async function logSaleTransaction(saleId: string, saleData: any) {
+export async function logSaleTransaction(saleId: string, saleData: unknown) {
   await createAuditLog({
     action: 'CREATE_SALE',
     table_name: 'sales',
@@ -60,7 +42,7 @@ export async function logSaleTransaction(saleId: string, saleData: any) {
 export async function logInventoryUpdate(productId: string, oldQuantity: number, newQuantity: number) {
   await createAuditLog({
     action: 'UPDATE_INVENTORY',
-    table_name: 'store_inventory',
+    table_name: 'products',
     record_id: productId,
     old_values: { stock_quantity: oldQuantity },
     new_values: { stock_quantity: newQuantity }
@@ -73,7 +55,7 @@ export async function logInventoryUpdate(productId: string, oldQuantity: number,
 export async function logPriceChange(productId: string, oldPrice: number, newPrice: number) {
   await createAuditLog({
     action: 'UPDATE_PRICE',
-    table_name: 'products_master',
+    table_name: 'products',
     record_id: productId,
     old_values: { selling_price: oldPrice },
     new_values: { selling_price: newPrice }
@@ -86,7 +68,7 @@ export async function logPriceChange(productId: string, oldPrice: number, newPri
 export async function logRoleAssignment(userId: string, role: string) {
   await createAuditLog({
     action: 'ASSIGN_ROLE',
-    table_name: 'user_roles',
+    table_name: 'users',
     record_id: userId,
     new_values: { role }
   });

@@ -9,7 +9,7 @@ export interface Product {
   reorder_level: number;
   barcode?: string;
   store_id: string;
-  product_id?: string; // The products_master.id (when needed for relationships)
+  product_id?: string; // Optional legacy reference (unused locally)
   created_at: string;
   updated_at: string;
 }
@@ -63,11 +63,4 @@ export interface CartItem {
   product: Product;
   quantity: number;
   total: number;
-}
-
-export interface SyncStatus {
-  isOnline: boolean;
-  pendingSales: number;
-  lastSync: string | null;
-  isSyncing: boolean;
 }

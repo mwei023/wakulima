@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
+import { getAuditLogs } from '@/lib/auditLog';
 import { toast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { Shield, Search, Download, Filter } from 'lucide-react';
@@ -42,14 +42,19 @@ export const AuditLog = () => {
   const loadLogs = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(500);
-
-      if (error) throw error;
-      setLogs(data || []);
+      const data = await getAuditLogs(500);
+      setLogs(data.map(d => ({
+        id: d.id,
+        user_id: d.user_id ?? 'System',
+        action: d.action,
+        table_name: d.table_name,
+        record_id: d.record_id ?? '',
+        old_values: (d.old_values ?? {}) as Record<string, unknown>,
+        new_values: (d.new_values ?? {}) as Record<string, unknown>,
+        ip_address: '',
+        user_agent: '',
+        created_at: d.created_at
+      })));
       } catch (error: unknown) {
       console.error('Error loading audit logs:', error);
       toast({

@@ -1,52 +1,264 @@
 import Dexie, { Table } from 'dexie';
-import { Product, Customer, Sale, SyncStatus } from '@/types';
+import { Product, Customer, Sale } from '@/types';
 
-interface OfflineData {
-  id?: number;
-  products: Product[];
-  customers: Customer[];
-  sales: Sale[];
-  syncStatus: SyncStatus;
-  lastUpdated: string;
+export interface LocalReturn {
+  id: string;
+  sale_id: string;
+  product_id: string;
+  quantity: number;
+  reason: string;
+  return_type: string;
+  refund_amount: number;
+  status: string;
+  notes: string;
+  created_at: string;
+  completed_at?: string | null;
 }
 
-interface QueuedSale {
-  id?: number;
-  saleData: Sale;
-  timestamp: string;
-  synced: boolean;
-}
-
-interface Conflict {
-  id?: number;
-  type: 'sale' | 'product' | 'customer';
-  localData: Record<string, unknown>;
-  remoteData: Record<string, unknown>;
-  timestamp: string;
-  resolved: boolean;
+export interface LocalAuditEntry {
+  id: string;
+  user_id: string | null;
+  action: string;
+  table_name: string;
+  record_id?: string | null;
+  old_values?: unknown;
+  new_values?: unknown;
+  created_at: string;
 }
 
 class OfflineDatabase extends Dexie {
-  offlineData!: Table<OfflineData>;
-  queuedSales!: Table<QueuedSale>;
-  conflicts!: Table<Conflict>;
+  localProducts!: Table<Product, string>;
+  localCustomers!: Table<Customer, string>;
+  localSales!: Table<Sale, string>;
+  localReturns!: Table<LocalReturn, string>;
+  localAudit!: Table<LocalAuditEntry, string>;
 
   constructor() {
     super('WakulimaAgrovetDB');
+    // v2/v3/v4 existed under an earlier server-sync architecture (offlineData,
+    // queuedSales, conflicts) and single-store transfers. v5 deletes those dead tables.
     this.version(2).stores({
       offlineData: '++id, lastUpdated',
       queuedSales: '++id, timestamp, synced',
       conflicts: '++id, type, timestamp, resolved'
+    });
+    this.version(3).stores({
+      localProducts: 'id, store_id, category',
+      localCustomers: 'id',
+      localSales: 'id, store_id, timestamp'
+    });
+    this.version(4).stores({
+      localReturns: 'id, sale_id, status, created_at',
+      localTransfers: 'id, status, created_at',
+      localAudit: 'id, created_at, table_name, action'
+    });
+    this.version(5).stores({
+      offlineData: null,
+      queuedSales: null,
+      conflicts: null,
+      localTransfers: null
     });
   }
 }
 
 export const db = new OfflineDatabase();
 
-// Network status management
+// Seed local tables once from mock data
+export async function seedLocal(): Promise<void> {
+  const { mockProducts, mockCustomers } = await import('@/data/mockData');
+  const { STORE_ID } = await import('@/lib/backend');
+  const count = await db.localProducts.count();
+  if (count > 0) return;
+  await db.transaction('rw', [db.localProducts, db.localCustomers, db.localSales], async () => {
+    await db.localProducts.bulkAdd(mockProducts.map(p => ({ ...p, store_id: STORE_ID })));
+    await db.localCustomers.bulkAdd(mockCustomers);
+  });
+}
+
+// Atomic local sale: checks stock + credit, decrements, inserts sale. Throws on validation.
+export async function processLocalSale(
+  storeId: string,
+  customerId: string | null,
+  paymentMethod: 'cash' | 'mpesa' | 'credit',
+  items: { product_id: string; product_name: string; quantity: number; unit_price: number; total_line: number }[],
+  totalAmount: number
+): Promise<string> {
+  return db.transaction('rw', [db.localProducts, db.localCustomers, db.localSales], async () => {
+    if (paymentMethod === 'credit') {
+      if (!customerId || customerId === 'walk-in') throw new Error('Credit sales require a registered customer');
+      const customer = await db.localCustomers.get(customerId);
+      if (!customer) throw new Error('Customer not found');
+      if (customer.outstanding_balance + totalAmount > customer.credit_limit) {
+        throw new Error('Sale exceeds customer credit limit');
+      }
+    }
+    for (const item of items) {
+      const product = await db.localProducts.get(item.product_id);
+      if (!product) throw new Error(`Product ${item.product_name} not found`);
+      if (product.stock_quantity < item.quantity) {
+        throw new Error(`Insufficient stock for ${item.product_name}. Available: ${product.stock_quantity}, Requested: ${item.quantity}`);
+      }
+    }
+    for (const item of items) {
+      const product = (await db.localProducts.get(item.product_id))!;
+      await db.localProducts.update(item.product_id, { stock_quantity: product.stock_quantity - item.quantity });
+    }
+    if (paymentMethod === 'credit' && customerId) {
+      const customer = (await db.localCustomers.get(customerId))!;
+      await db.localCustomers.update(customerId, { outstanding_balance: customer.outstanding_balance + totalAmount });
+    }
+    const saleId = crypto.randomUUID();
+    const sale: Sale = {
+      id: saleId,
+      customer_id: customerId,
+      total_amount: totalAmount,
+      payment_method: paymentMethod,
+      status: 'pending',
+      timestamp: new Date().toISOString(),
+      store_id: storeId,
+      items: items.map(item => ({ ...item, id: crypto.randomUUID(), sale_id: saleId }))
+    };
+    await db.localSales.add(sale);
+    return saleId;
+  });
+}
+
+// ---- Local audit trail ----
+export async function addAudit(
+  action: string,
+  table_name: string,
+  record_id?: string | null,
+  new_values?: unknown,
+  user_id?: string | null,
+  old_values?: unknown
+): Promise<void> {
+  await db.localAudit.add({
+    id: crypto.randomUUID(),
+    user_id: user_id ?? getSessionUserId(),
+    action,
+    table_name,
+    record_id: record_id ?? null,
+    old_values,
+    new_values,
+    created_at: new Date().toISOString()
+  });
+}
+
+function getSessionUserId(): string | null {
+  try {
+    const raw = localStorage.getItem('wakulima-session');
+    return raw ? (JSON.parse(raw) as { id: string }).id : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getAudit(limit = 500): Promise<LocalAuditEntry[]> {
+  return db.localAudit.orderBy('created_at').reverse().limit(limit).toArray();
+}
+
+// ---- Local returns ----
+// A return must reference a product line from the referenced sale; the refund
+// amount is always derived from what was actually paid (the sale line price),
+// never from the current catalog price, and never more than what is still
+// returnable for that line (purchased minus already-returned).
+export async function createLocalReturn(input: {
+  sale_id: string;
+  product_id: string;
+  quantity: number;
+  reason: string;
+  return_type: string;
+  notes: string;
+  status?: string;
+}): Promise<LocalReturn> {
+  return db.transaction('rw', [db.localReturns, db.localSales], async () => {
+    const sale = await db.localSales.get(input.sale_id);
+    if (!sale) throw new Error('Sale not found');
+
+    const line = sale.items.find(i => i.product_id === input.product_id);
+    if (!line) throw new Error('Product was not purchased in this sale');
+
+    const quantity = Math.floor(input.quantity);
+    if (!Number.isFinite(input.quantity) || quantity <= 0) {
+      throw new Error('Return quantity must be at least 1');
+    }
+
+    const priorReturns = await db.localReturns.where('sale_id').equals(input.sale_id).toArray();
+    const alreadyReturned = priorReturns
+      .filter(r => r.product_id === input.product_id && r.status !== 'rejected')
+      .reduce((sum, r) => sum + r.quantity, 0);
+    const returnable = line.quantity - alreadyReturned;
+    if (quantity > returnable) {
+      throw new Error(`Cannot return ${quantity}: only ${returnable} of ${line.quantity} purchased units still returnable`);
+    }
+
+    // Money must be refunded at the price the customer actually paid.
+    const refund_amount = Math.round(line.unit_price * quantity * 100) / 100;
+
+    const entry: LocalReturn = {
+      sale_id: input.sale_id,
+      product_id: input.product_id,
+      quantity,
+      reason: input.reason,
+      return_type: input.return_type,
+      refund_amount,
+      status: input.status ?? 'pending',
+      notes: input.notes,
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString()
+    };
+    await db.localReturns.add(entry);
+    return entry;
+  });
+}
+
+export async function updateLocalReturnStatus(id: string, status: string): Promise<void> {
+  await db.transaction(
+    'rw',
+    [db.localReturns, db.localProducts, db.localSales, db.localCustomers],
+    async () => {
+      const ret = await db.localReturns.get(id);
+      if (!ret) throw new Error('Return not found');
+      if (ret.status === 'completed') throw new Error('Return has already been completed');
+
+      await db.localReturns.update(id, {
+        status,
+        ...(status === 'completed' ? { completed_at: new Date().toISOString() } : {})
+      });
+
+      // Restock once when a return completes (the goods come back for all types).
+      if (status === 'completed') {
+        const product = await db.localProducts.get(ret.product_id);
+        if (product) {
+          await db.localProducts.update(ret.product_id, { stock_quantity: product.stock_quantity + ret.quantity });
+        }
+
+        // Reverse the money: refunds and store credits return value to the
+        // customer. Only credit sales carry a balance in the system, so only
+        // those are adjusted; cash/mpesa refunds leave the till physically.
+        if (ret.return_type === 'refund' || ret.return_type === 'credit') {
+          const sale = await db.localSales.get(ret.sale_id);
+          if (sale && sale.payment_method === 'credit' && sale.customer_id) {
+            const customer = await db.localCustomers.get(sale.customer_id);
+            if (customer) {
+              const newBalance = Math.max(0, customer.outstanding_balance - ret.refund_amount);
+              await db.localCustomers.update(customer.id, { outstanding_balance: newBalance });
+            }
+          }
+        }
+      }
+    }
+  );
+}
+
+export async function getLocalReturns(): Promise<LocalReturn[]> {
+  return db.localReturns.orderBy('created_at').reverse().toArray();
+}
+
+// ---- Network status (browser events only; there is no server to sync to) ----
 export class OfflineManager {
   private static instance: OfflineManager;
-  private isOnline: boolean = navigator.onLine;
+  private isOnline: boolean = typeof navigator !== 'undefined' ? navigator.onLine : true;
   private listeners: ((isOnline: boolean) => void)[] = [];
 
   static getInstance(): OfflineManager {
@@ -64,9 +276,6 @@ export class OfflineManager {
   private setOnlineStatus(status: boolean) {
     this.isOnline = status;
     this.listeners.forEach(listener => listener(status));
-    if (status) {
-      this.syncQueuedSales();
-    }
   }
 
   getOnlineStatus(): boolean {
@@ -79,194 +288,6 @@ export class OfflineManager {
 
   removeStatusListener(listener: (isOnline: boolean) => void) {
     this.listeners = this.listeners.filter(l => l !== listener);
-  }
-
-  // Cache data offline
-  async cacheData(products: Product[], customers: Customer[], sales: Sale[], syncStatus: SyncStatus) {
-    await db.offlineData.clear();
-    await db.offlineData.add({
-      products,
-      customers,
-      sales,
-      syncStatus,
-      lastUpdated: new Date().toISOString()
-    });
-  }
-
-  // Load cached data
-  async loadCachedData(): Promise<OfflineData | null> {
-    const data = await db.offlineData.orderBy('lastUpdated').last();
-    return data || null;
-  }
-
-  // Queue sale for sync when online
-  async queueSale(sale: Sale) {
-    await db.queuedSales.add({
-      saleData: sale,
-      timestamp: new Date().toISOString(),
-      synced: false
-    });
-  }
-
-  // Get pending sales count
-  async getPendingSalesCount(): Promise<number> {
-    return await db.queuedSales.where('synced').equals(0).count();
-  }
-
-  // Sync queued sales to Supabase
-  async syncQueuedSales() {
-    const pendingSales = await db.queuedSales.where('synced').equals(0).toArray();
-    
-    // Import supabase dynamically to avoid circular deps
-    const { supabase } = await import('@/integrations/supabase/client');
-    
-    for (const queuedSale of pendingSales) {
-      try {
-        const sale = queuedSale.saleData;
-        
-        // Insert sale into Supabase
-        const { data: saleData, error: saleError } = await supabase
-          .from('sales')
-          .insert({
-            customer_id: sale.customer_id,
-            total_amount: sale.total_amount,
-            payment_method: sale.payment_method,
-            status: 'synced',
-            timestamp: sale.timestamp,
-            store_id: sale.store_id
-          })
-          .select()
-          .single();
-
-        if (saleError) throw saleError;
-
-        // Insert sale items
-        const saleItemsToInsert = sale.items.map(item => ({
-          sale_id: saleData.id,
-          product_id: item.product_id,
-          product_name: item.product_name,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_line: item.total_line
-        }));
-
-        const { error: itemsError } = await supabase
-          .from('sale_items')
-          .insert(saleItemsToInsert);
-
-        if (itemsError) throw itemsError;
-
-        // Update stock quantities in store_inventory
-        for (const item of sale.items) {
-          const { data: currentProduct, error: fetchError } = await supabase
-            .from('store_inventory')
-            .select('stock_quantity')
-            .eq('id', item.product_id)
-            .single();
-
-          if (fetchError) throw fetchError;
-
-          const newStock = currentProduct.stock_quantity - item.quantity;
-          const { error: stockError } = await supabase
-            .from('store_inventory')
-            .update({ stock_quantity: newStock })
-            .eq('id', item.product_id);
-
-          if (stockError) throw stockError;
-        }
-
-        // Update customer balance if credit
-        if (sale.payment_method === 'credit' && sale.customer_id) {
-          const { data: customer, error: fetchCustomerError } = await supabase
-            .from('customers')
-            .select('outstanding_balance')
-            .eq('id', sale.customer_id)
-            .single();
-
-          if (fetchCustomerError) throw fetchCustomerError;
-
-          const { error: customerError } = await supabase
-            .from('customers')
-            .update({
-              outstanding_balance: customer.outstanding_balance + sale.total_amount
-            })
-            .eq('id', sale.customer_id);
-
-          if (customerError) throw customerError;
-        }
-        
-        // Mark as synced
-        await db.queuedSales.update(queuedSale.id!, { synced: true });
-        console.log('Successfully synced sale:', sale.id);
-        
-      } catch (error) {
-        console.error('Failed to sync sale:', queuedSale.saleData.id, error);
-        // Keep in queue for retry - continue to next sale
-        continue;
-      }
-    }
-  }
-
-  // Manual sync trigger
-  async forcSync(): Promise<void> {
-    if (!this.isOnline) {
-      throw new Error('Cannot sync while offline');
-    }
-    await this.syncQueuedSales();
-  }
-
-  // Conflict resolution methods
-  async detectConflicts(localData: Record<string, unknown>, remoteData: Record<string, unknown>, type: 'sale' | 'product' | 'customer'): Promise<boolean> {
-    // Simple conflict detection - check if both have been modified
-    // For now, use last-write-wins for most conflicts, but queue for manual resolution if significant differences
-    if (type === 'sale') {
-      // For sales, check if amounts differ significantly
-      const localAmount = localData.total_amount as number;
-      const remoteAmount = remoteData.total_amount as number;
-      return Math.abs(localAmount - remoteAmount) > 0.01; // More than 1 cent difference
-    }
-    // For products and customers, use timestamps if available
-    return false; // Default to no conflict for now
-  }
-
-  async queueConflict(type: 'sale' | 'product' | 'customer', localData: Record<string, unknown>, remoteData: Record<string, unknown>) {
-    await db.conflicts.add({
-      type,
-      localData,
-      remoteData,
-      timestamp: new Date().toISOString(),
-      resolved: false
-    });
-  }
-
-  async resolveConflict(conflictId: number, useLocal: boolean) {
-    const conflict = await db.conflicts.get(conflictId);
-    if (!conflict) return;
-
-    // Apply resolution (for now, just mark as resolved)
-    // In a full implementation, this would merge or choose data
-    await db.conflicts.update(conflictId, { resolved: true });
-
-    // Trigger sync if online
-    if (this.isOnline) {
-      await this.syncQueuedSales();
-    }
-  }
-
-  async getPendingConflicts(): Promise<Conflict[]> {
-    return await db.conflicts.where('resolved').equals(0).toArray();
-  }
-
-  // Background sync trigger
-  async triggerBackgroundSync() {
-    if ('serviceWorker' in navigator && 'sync' in (window as any).ServiceWorkerRegistration.prototype) {
-      const registration = await navigator.serviceWorker.ready;
-      try {
-        await (registration as any).sync.register('background-sync');
-      } catch (error) {
-        console.error('Background sync registration failed:', error);
-      }
-    }
   }
 }
 

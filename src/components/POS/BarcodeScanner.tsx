@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
+import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, CameraOff, RotateCcw } from 'lucide-react';
@@ -15,7 +15,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
   const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string>('');
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
 
   useEffect(() => {
     startScanning();
@@ -62,9 +62,9 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
           }
         );
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Camera error:', error);
-      setCameraError(error.message || 'Failed to access camera');
+      setCameraError(error instanceof Error ? error.message : 'Failed to access camera');
       setIsScanning(false);
       toast({
         title: "Camera Error",

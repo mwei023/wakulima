@@ -14,8 +14,7 @@ import { formatCurrency } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { Product } from '@/types';
 import { CategorySelector } from './CategorySelector';
-import { populateDatabase, parsedProducts } from '../../../scripts/populateProducts.js';
-import { supabase } from '@/integrations/supabase/client';
+import { parsedProducts } from '@/data/catalog.js';
 
 export const InventoryView = () => {
   const { products, updateStock, addProduct, updateProduct } = useStore();
@@ -105,11 +104,29 @@ export const InventoryView = () => {
         description: `Populating ${parsedProducts.length} products...`
       });
 
-      const result = await populateDatabase(supabase, currentStoreId);
+      const { db } = await import('@/lib/db');
+      const existingBarcodes = new Set(useStore.getState().products.map(p => p.barcode).filter(Boolean));
+      const fresh = parsedProducts.filter((p: { barcode: string }) => !p.barcode || !existingBarcodes.has(p.barcode));
+      const now = new Date().toISOString();
+      const toAdd = fresh.map((p: { name: string; category: string; unit: string; selling_price: number; cost_price: number; stock_quantity: number; reorder_level: number; barcode: string }) => ({
+        id: crypto.randomUUID(),
+        name: p.name,
+        category: p.category,
+        unit: p.unit,
+        selling_price: Number(p.selling_price) || 0,
+        cost_price: Number(p.cost_price) || 0,
+        stock_quantity: Number(p.stock_quantity) || 0,
+        reorder_level: Number(p.reorder_level) || 0,
+        barcode: p.barcode,
+        store_id: currentStoreId,
+        created_at: now,
+        updated_at: now
+      }));
+      if (toAdd.length > 0) await db.localProducts.bulkAdd(toAdd);
 
       toast({
         title: "Population Complete",
-        description: `Successfully added ${result.successCount} products. ${result.errorCount} errors.`
+        description: `Successfully added ${toAdd.length} products. ${parsedProducts.length - toAdd.length} already existed.`
       });
 
       // Refresh the data

@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRole } from '@/hooks/useRole';
 import { useDataLoader } from '@/hooks/useDataLoader';
 import { useStore } from '@/store/useStore';
+import { shouldNagForBackup } from '@/lib/backupReminder';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CloudDownload } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,35 +20,33 @@ import {
   Settings as SettingsIcon,
   Wifi,
   WifiOff,
-  RefreshCw,
   LogOut,
   Truck,
   Database,
   Menu,
   User,
-  ArrowRightLeft,
   RotateCcw,
   Shield
 } from 'lucide-react';
 import { POSInterface } from '@/components/POS/POSInterface';
 import { InventoryView } from '@/components/Inventory/InventoryView';
 import { CustomersView } from '@/components/Customers/CustomersView';
-import { OrdersView } from '@/components/Orders/OrdersView';
-import { AdvancedReports } from '@/components/Reports/AdvancedReports';
-import { SupplierManager } from '@/components/Inventory/SupplierManager';
-import { BackupManager } from '@/components/DataExport/BackupManager';
-import { Settings } from '@/components/Settings/Settings';
-import { StockTransfers } from '@/components/Operations/StockTransfers';
-import { ReturnsRefunds } from '@/components/Operations/ReturnsRefunds';
-import { AuditLog } from '@/components/Admin/AuditLog';
+const OrdersView = lazy(() => import('@/components/Orders/OrdersView').then(m => ({ default: m.OrdersView })));
+const AdvancedReports = lazy(() => import('@/components/Reports/AdvancedReports').then(m => ({ default: m.AdvancedReports })));
+const SupplierManager = lazy(() => import('@/components/Inventory/SupplierManager').then(m => ({ default: m.SupplierManager })));
+const BackupManager = lazy(() => import('@/components/DataExport/BackupManager').then(m => ({ default: m.BackupManager })));
+const Settings = lazy(() => import('@/components/Settings/Settings').then(m => ({ default: m.Settings })));
+const ReturnsRefunds = lazy(() => import('@/components/Operations/ReturnsRefunds').then(m => ({ default: m.ReturnsRefunds })));
+const AuditLog = lazy(() => import('@/components/Admin/AuditLog').then(m => ({ default: m.AuditLog })));
 
 export const Layout = () => {
   const [activeTab, setActiveTab] = useState('pos');
-  const syncStatus = useStore(state => state.syncStatus);
+  const [backupNagVisible, setBackupNagVisible] = useState(() => shouldNagForBackup());
+  const isOnline = useStore(state => state.isOnline);
   const { user, signOut } = useAuth();
   const { role, isAdmin } = useRole();
   
-  // Initialize data loading from Supabase
+  // Initialize data loading from the local database
   useDataLoader();
 
   const handleSignOut = async () => {
@@ -54,18 +55,6 @@ export const Layout = () => {
     } catch (error) {
       console.error('Error signing out:', error);
     }
-  };
-
-  const getSyncIcon = () => {
-    if (!syncStatus.isOnline) return <WifiOff className="h-4 w-4" />;
-    if (syncStatus.pendingSales > 0) return <RefreshCw className="h-4 w-4 animate-spin" />;
-    return <Wifi className="h-4 w-4" />;
-  };
-
-  const getSyncColor = () => {
-    if (!syncStatus.isOnline) return 'destructive';
-    if (syncStatus.pendingSales > 0) return 'warning';
-    return 'success';
   };
 
   return (
@@ -79,16 +68,11 @@ export const Layout = () => {
           </div>
           
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Sync Status */}
-            <Badge variant={getSyncColor() as any} className="flex items-center gap-1">
-              {getSyncIcon()}
+            {/* Network Status */}
+            <Badge variant={isOnline ? 'success' : 'destructive'} className="flex items-center gap-1">
+              {isOnline ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
               <span className="text-xs hidden sm:inline">
-                {!syncStatus.isOnline 
-                  ? 'Offline' 
-                  : syncStatus.pendingSales > 0 
-                    ? `Syncing ${syncStatus.pendingSales}`
-                    : 'Online'
-                }
+                {isOnline ? 'Online' : 'Offline'}
               </span>
             </Badge>
             
@@ -96,7 +80,7 @@ export const Layout = () => {
             <div className="hidden lg:flex items-center gap-2">
               <ThemeToggle />
               <div className="text-right">
-                <p className="text-sm font-medium">{user?.user_metadata?.full_name || user?.email}</p>
+                <p className="text-sm font-medium">{user?.full_name || user?.email}</p>
                 <p className="text-xs text-muted-foreground capitalize">{role || 'Loading...'}</p>
               </div>
               <Button 
@@ -126,7 +110,7 @@ export const Layout = () => {
                       <User className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{user?.user_metadata?.full_name || user?.email}</p>
+                      <p className="text-sm font-medium truncate">{user?.full_name || user?.email}</p>
                       <p className="text-xs text-muted-foreground capitalize">{role || 'Loading...'}</p>
                     </div>
                   </div>
@@ -185,15 +169,6 @@ export const Layout = () => {
                           >
                             <Truck className="h-4 w-4" />
                             Suppliers
-                          </Button>
-                          <Button
-                            variant={activeTab === 'transfers' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            onClick={() => setActiveTab('transfers')}
-                            className="justify-start gap-2"
-                          >
-                            <ArrowRightLeft className="h-4 w-4" />
-                            Transfers
                           </Button>
                           <Button
                             variant={activeTab === 'orders' ? 'secondary' : 'ghost'}
@@ -262,6 +237,31 @@ export const Layout = () => {
 
       {/* Main Content */}
       <div className="container mx-auto p-4">
+        {isAdmin && backupNagVisible && (
+          <Alert className="mb-4 border-warning bg-warning/10">
+            <CloudDownload className="h-4 w-4 text-warning" />
+            <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <span>
+                No recent off-device backup. If this device is lost or wiped, sales history goes with it.
+              </span>
+              <span className="flex gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setBackupNagVisible(false);
+                    setActiveTab('backup');
+                  }}
+                >
+                  Go to Backup
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setBackupNagVisible(false)}>
+                  Dismiss
+                </Button>
+              </span>
+            </AlertDescription>
+          </Alert>
+        )}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="hidden lg:flex lg:w-auto lg:inline-flex lg:flex-wrap gap-1">
             <TabsTrigger value="pos" className="flex items-center gap-2">
@@ -285,10 +285,6 @@ export const Layout = () => {
                 <TabsTrigger value="suppliers" className="flex items-center gap-2">
                   <Truck className="h-4 w-4" />
                   <span className="hidden sm:inline">Suppliers</span>
-                </TabsTrigger>
-                <TabsTrigger value="transfers" className="flex items-center gap-2">
-                  <ArrowRightLeft className="h-4 w-4" />
-                  <span className="hidden sm:inline">Transfers</span>
                 </TabsTrigger>
                 <TabsTrigger value="orders" className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4" />
@@ -323,7 +319,9 @@ export const Layout = () => {
           </TabsContent>
           
           <TabsContent value="suppliers" className="mt-6">
-            <SupplierManager />
+            <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+              <SupplierManager />
+            </Suspense>
           </TabsContent>
           
           <TabsContent value="customers" className="mt-6">
@@ -331,31 +329,39 @@ export const Layout = () => {
           </TabsContent>
           
           <TabsContent value="orders" className="mt-6">
-            <OrdersView />
+            <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+              <OrdersView />
+            </Suspense>
           </TabsContent>
           
           <TabsContent value="reports" className="mt-6">
-            <AdvancedReports />
+            <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+              <AdvancedReports />
+            </Suspense>
           </TabsContent>
           
           <TabsContent value="backup" className="mt-6">
-            <BackupManager />
+            <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+              <BackupManager />
+            </Suspense>
           </TabsContent>
           
           <TabsContent value="settings" className="mt-6">
-            <Settings />
-          </TabsContent>
-          
-          <TabsContent value="transfers" className="mt-6">
-            <StockTransfers />
+            <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+              <Settings />
+            </Suspense>
           </TabsContent>
           
           <TabsContent value="returns" className="mt-6">
-            <ReturnsRefunds />
+            <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+              <ReturnsRefunds />
+            </Suspense>
           </TabsContent>
           
           <TabsContent value="audit" className="mt-6">
-            <AuditLog />
+            <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+              <AuditLog />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </div>

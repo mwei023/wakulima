@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Badge, type BadgeProps } from '@/components/ui/badge';
+import type { PendingOrder } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,7 @@ import { toast } from '@/hooks/use-toast';
 
 export const OrdersView = () => {
   const { pendingOrders, customers, products, confirmOrder, ignoreOrder } = useStore();
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<PendingOrder | null>(null);
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
 
@@ -104,7 +105,7 @@ export const OrdersView = () => {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <Badge variant={getStatusColor(order.status) as any}>
+                        <Badge variant={getStatusColor(order.status) as BadgeProps['variant']}>
                           {order.status}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
@@ -160,7 +161,7 @@ export const OrdersView = () => {
                 <div key={order.id} className="flex items-center justify-between p-3 border rounded">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant={getStatusColor(order.status) as any}>
+                      <Badge variant={getStatusColor(order.status) as BadgeProps['variant']}>
                         {order.status}
                       </Badge>
                       <span className="text-sm text-muted-foreground">

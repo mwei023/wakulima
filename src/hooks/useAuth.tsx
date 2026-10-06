@@ -1,83 +1,43 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { USERS, getSession, setSession, type LocalUser } from '@/lib/backend';
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: LocalUser | null;
   loading: boolean;
+  signIn: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<LocalUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-        
-        // Create profile if user just signed up
-        if (event === 'SIGNED_IN' && session?.user) {
-          setTimeout(() => {
-            createUserProfile(session.user);
-          }, 0);
-        }
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Instant local session; default to admin so a fresh demo is fully usable.
+    const existing = getSession() ?? USERS[0];
+    setSession(existing);
+    setUser(existing);
+    setLoading(false);
   }, []);
 
-  const createUserProfile = async (user: User) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert([
-          {
-            id: user.id,
-            username: user.email?.split('@')[0],
-            full_name: user.user_metadata?.full_name || user.email,
-          }
-        ], { onConflict: 'id' });
-
-      if (error) {
-        console.error('Error creating profile:', error);
-      }
-    } catch (error) {
-      console.error('Error creating profile:', error);
-    }
+  const signIn = async (email: string) => {
+    const normalized = email.trim().toLowerCase();
+    const found = USERS.find(u => u.email === normalized)
+      ?? (normalized.includes('cashier') ? USERS[1] : USERS[0]);
+    setSession(found);
+    setUser(found);
   };
 
   const signOut = async () => {
-    if (!session) {
-      console.log('No active session to sign out from');
-      return;
-    }
-
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error);
-      throw error;
-    }
+    // Local app: signing out returns to the default admin instead of a dead login wall.
+    setSession(USERS[0]);
+    setUser(USERS[0]);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

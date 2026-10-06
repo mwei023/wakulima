@@ -14,6 +14,7 @@ import {
   Calendar, Download, FileText, BarChart3 
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import type { Customer } from '@/types';
 import { DateRange } from 'react-day-picker';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -105,7 +106,7 @@ export const AdvancedReports = () => {
   };
 
   const getTopCustomers = () => {
-    const customerData: { [key: string]: { sales: number; transactions: number; customer: any } } = {};
+    const customerData: { [key: string]: { sales: number; transactions: number; customer: Customer } } = {};
     
     filteredSales.forEach(sale => {
       if (sale.customer_id && sale.customer_id !== 'walk-in') {
@@ -153,7 +154,7 @@ export const AdvancedReports = () => {
   };
 
   // Export functions
-  const exportToExcel = (data: any[], filename: string) => {
+  const exportToExcel = (data: Record<string, unknown>[], filename: string) => {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Report');

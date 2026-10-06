@@ -9,6 +9,9 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+const isInstallPromptEvent = (e: Event): e is BeforeInstallPromptEvent =>
+  'prompt' in e && 'userChoice' in e;
+
 export const InstallPrompt = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -26,7 +29,7 @@ export const InstallPrompt = () => {
     // Listen for the native install prompt event
     const handler = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      if (isInstallPromptEvent(e)) setDeferredPrompt(e);
     };
 
     window.addEventListener('beforeinstallprompt', handler);

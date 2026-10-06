@@ -1,16 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   server: {
     host: "::",
     port: 8080,
   },
-  plugins: [react(), mode === "development" && componentTagger(),
+  plugins: [react(),
 
     VitePWA({
       registerType: 'autoUpdate',
@@ -18,7 +17,7 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         name: 'Wakulima App',
         short_name: 'Wakulima',
-        description: 'Your Sytem for Managing your Shop and Inventory Effortlessly',
+        description: 'Your System for Managing your Shop and Inventory Effortlessly',
         theme_color: '#10b981',
         background_color: '#ffffff',
         display: 'standalone',
@@ -51,31 +50,30 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 week
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ]
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024
       },
       devOptions: {
         enabled: true
       }
     })
   ].filter(Boolean),
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          data: ['@tanstack/react-query', 'dexie'],
+          charts: ['recharts'],
+          export: ['xlsx', 'jspdf', 'html2canvas'],
+          scanner: ['@zxing/browser', '@zxing/library']
+        }
+      }
+    }
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
-}));
+});

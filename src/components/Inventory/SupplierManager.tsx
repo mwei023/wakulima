@@ -143,7 +143,7 @@ export const SupplierManager = () => {
     });
   };
 
-  const createPurchaseOrder = (supplierId: string, items: any[]) => {
+  const createPurchaseOrder = (supplierId: string, items: PurchaseOrder['items']) => {
     const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
     
     const po: PurchaseOrder = {

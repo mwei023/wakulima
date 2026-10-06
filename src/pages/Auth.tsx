@@ -3,72 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { supabase } from '@/integrations/supabase/client';
+import { USERS } from '@/lib/backend';
+import { useAuth } from '@/hooks/useAuth';
 import { Leaf } from 'lucide-react';
 
 export default function Auth() {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
 
-  const handleSignUp = async (email: string, password: string, fullName: string) => {
+  const handleLogin = async (loginEmail: string) => {
     setLoading(true);
-    setError(null);
-    
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            full_name: fullName,
-          }
-        }
-      });
-      
-      if (error) throw error;
-      
-      // Show success message for email confirmation
-      setError('Please check your email to confirm your account.');
-    } catch (error: any) {
-      setError(error.message || 'An error occurred during sign up');
+      await signIn(loginEmail || USERS[0].email);
+      navigate('/');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSignIn = async (email: string, password: string) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) {
-        // Log failed login attempt
-        await supabase.from('failed_login_attempts').insert({
-          email,
-          ip_address: null,
-          user_agent: navigator.userAgent
-        });
-        throw error;
-      }
-      
-      navigate('/');
-    } catch (error: any) {
-      setError(error.message || 'An error occurred during sign in');
-    } finally {
-      setLoading(false);
-    }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleLogin(email);
   };
 
   return (
@@ -81,135 +39,35 @@ export default function Auth() {
           </div>
           <CardTitle>Welcome</CardTitle>
           <CardDescription>
-            Sign in to your account or create a new one
+            Pick a profile to enter the demo. No password needed.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="signin">
-              <SignInForm onSubmit={handleSignIn} loading={loading} />
-            </TabsContent>
-            
-            <TabsContent value="signup">
-              <SignUpForm onSubmit={handleSignUp} loading={loading} />
-            </TabsContent>
-          </Tabs>
-          
-          {error && (
-            <Alert className="mt-4">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+        <CardContent className="space-y-3">
+          <Button className="w-full" onClick={() => handleLogin(USERS[0].email)} disabled={loading}>
+            Enter as Admin
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => handleLogin(USERS[1].email)} disabled={loading}>
+            Enter as Cashier
+          </Button>
+
+          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="email">Or sign in with email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@wakulima.local"
+                disabled={loading}
+              />
+            </div>
+            <Button type="submit" variant="secondary" className="w-full" disabled={loading}>
+              {loading ? 'Entering...' : 'Sign In'}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-interface SignInFormProps {
-  onSubmit: (email: string, password: string) => void;
-  loading: boolean;
-}
-
-function SignInForm({ onSubmit, loading }: SignInFormProps) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(email, password);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="signin-email">Email</Label>
-        <Input
-          id="signin-email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          disabled={loading}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="signin-password">Password</Label>
-        <Input
-          id="signin-password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          disabled={loading}
-        />
-      </div>
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'Signing in...' : 'Sign In'}
-      </Button>
-    </form>
-  );
-}
-
-interface SignUpFormProps {
-  onSubmit: (email: string, password: string, fullName: string) => void;
-  loading: boolean;
-}
-
-function SignUpForm({ onSubmit, loading }: SignUpFormProps) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(email, password, fullName);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="signup-name">Full Name</Label>
-        <Input
-          id="signup-name"
-          type="text"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          required
-          disabled={loading}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="signup-email">Email</Label>
-        <Input
-          id="signup-email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          disabled={loading}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="signup-password">Password</Label>
-        <Input
-          id="signup-password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-          disabled={loading}
-        />
-      </div>
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'Creating account...' : 'Create Account'}
-      </Button>
-    </form>
   );
 }

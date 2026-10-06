@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,47 +7,42 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useStore } from '@/store/useStore';
 import { useRole } from '@/hooks/useRole';
 import { toast } from '@/hooks/use-toast';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { createAuditLog } from '@/lib/auditLog';
+import { createLocalReturn, updateLocalReturnStatus, getLocalReturns, LocalReturn } from '@/lib/db';
 import { Plus, RotateCcw, Check, X, DollarSign } from 'lucide-react';
 
-interface Return {
-  id: string;
-  sale_id: string;
+interface SaleLine {
   product_id: string;
+  product_name: string;
   quantity: number;
-  reason: string;
-  return_type: string;
-  refund_amount: number;
-  status: string;
-  notes: string;
-  created_at: string;
+  unit_price: number;
 }
 
-interface Sale {
+interface SaleSummary {
   id: string;
   customer_id: string;
   total_amount: number;
   timestamp: string;
+  payment_method: string;
+  items: SaleLine[];
 }
 
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  selling_price: number;
-}
+const statusVariants: Record<string, 'secondary' | 'default' | 'destructive'> = {
+  pending: 'secondary',
+  approved: 'default',
+  rejected: 'destructive',
+  completed: 'default'
+};
 
 export const ReturnsRefunds = () => {
-  const { user } = useAuth();
   const { isAdmin } = useRole();
-  const [returns, setReturns] = useState<Return[]>([]);
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const storeSales = useStore(s => s.sales);
+  const reloadStore = useStore(s => s.loadData);
+  const [returns, setReturns] = useState<LocalReturn[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -57,27 +52,18 @@ export const ReturnsRefunds = () => {
     quantity: 1,
     reason: '',
     return_type: 'refund',
-    refund_amount: 0,
     notes: ''
   });
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      
-      const [returnsRes, salesRes, productsRes] = await Promise.all([
-        supabase.from('returns').select('*').order('created_at', { ascending: false }),
-        supabase.from('sales').select('*').order('timestamp', { ascending: false }).limit(50),
-        supabase.from('products_master').select('id, name, category, selling_price')
-      ]);
-
-      if (returnsRes.data) setReturns(returnsRes.data);
-      if (salesRes.data) setSales(salesRes.data);
-      if (productsRes.data) setProducts(productsRes.data);
+      setReturns(await getLocalReturns());
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -90,26 +76,47 @@ export const ReturnsRefunds = () => {
     }
   };
 
-  const handleProductChange = (productId: string) => {
-    const product = products.find(p => p.id === productId);
-    if (product) {
-      setNewReturn({
-        ...newReturn,
-        product_id: productId,
-        refund_amount: product.selling_price * newReturn.quantity
-      });
+  const sales: SaleSummary[] = useMemo(
+    () =>
+      storeSales.map(s => ({
+        id: s.id,
+        customer_id: s.customer_id ?? '',
+        total_amount: s.total_amount,
+        timestamp: s.timestamp,
+        payment_method: s.payment_method,
+        items: s.items ?? []
+      })),
+    [storeSales]
+  );
+
+  const selectedSale = sales.find(s => s.id === newReturn.sale_id) ?? null;
+
+  // Units already returned (not rejected) per product for the selected sale.
+  const returnedByProduct = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const r of returns) {
+      if (r.sale_id === newReturn.sale_id && r.status !== 'rejected') {
+        map[r.product_id] = (map[r.product_id] ?? 0) + r.quantity;
+      }
     }
+    return map;
+  }, [returns, newReturn.sale_id]);
+
+  const selectedLine = selectedSale?.items.find(i => i.product_id === newReturn.product_id) ?? null;
+  const returnable = selectedLine ? selectedLine.quantity - (returnedByProduct[selectedLine.product_id] ?? 0) : 0;
+  // Refund is always computed from what the customer actually paid — never editable.
+  const computedRefund = selectedLine ? Math.round(selectedLine.unit_price * newReturn.quantity * 100) / 100 : 0;
+
+  const handleSaleChange = (saleId: string) => {
+    setNewReturn({ ...newReturn, sale_id: saleId, product_id: '', quantity: 1 });
+  };
+
+  const handleProductChange = (productId: string) => {
+    setNewReturn(prev => ({ ...prev, product_id: productId, quantity: 1 }));
   };
 
   const handleQuantityChange = (quantity: number) => {
-    const product = products.find(p => p.id === newReturn.product_id);
-    if (product) {
-      setNewReturn({
-        ...newReturn,
-        quantity,
-        refund_amount: product.selling_price * quantity
-      });
-    }
+    setNewReturn(prev => ({ ...prev, quantity }));
   };
 
   const handleCreateReturn = async () => {
@@ -121,43 +128,35 @@ export const ReturnsRefunds = () => {
       });
       return;
     }
+    if (newReturn.quantity < 1 || newReturn.quantity > returnable) {
+      toast({
+        title: 'Error',
+        description: `Quantity must be between 1 and ${returnable} (purchased minus already returned)`,
+        variant: 'destructive'
+      });
+      return;
+    }
 
     try {
-      // Get store_id from the sale
-      const sale = sales.find(s => s.id === newReturn.sale_id);
-      if (!sale) {
-        throw new Error('Sale not found');
-      }
-
-      const { data: saleData } = await supabase
-        .from('sales')
-        .select('store_id')
-        .eq('id', newReturn.sale_id)
-        .single();
-
-      const { data, error } = await supabase
-        .from('returns')
-        .insert({
-          ...newReturn,
-          store_id: saleData?.store_id,
-          status: 'pending',
-          processed_by: user?.id
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await createLocalReturn({
+        sale_id: newReturn.sale_id,
+        product_id: newReturn.product_id,
+        quantity: newReturn.quantity,
+        reason: newReturn.reason,
+        return_type: newReturn.return_type,
+        notes: newReturn.notes
+      });
 
       await createAuditLog({
         action: 'CREATE_RETURN',
         table_name: 'returns',
         record_id: data.id,
-        new_values: newReturn
+        new_values: { ...newReturn, refund_amount: data.refund_amount }
       });
 
       toast({
         title: 'Return Created',
-        description: 'Return request has been created successfully'
+        description: `Refund of ${formatCurrency(data.refund_amount)} pending approval`
       });
 
       setIsCreating(false);
@@ -167,15 +166,14 @@ export const ReturnsRefunds = () => {
         quantity: 1,
         reason: '',
         return_type: 'refund',
-        refund_amount: 0,
         notes: ''
       });
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating return:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to create return',
+        description: error instanceof Error ? error.message : 'Failed to create return',
         variant: 'destructive'
       });
     }
@@ -183,15 +181,7 @@ export const ReturnsRefunds = () => {
 
   const handleUpdateStatus = async (returnId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
-        .from('returns')
-        .update({ 
-          status: newStatus,
-          ...(newStatus === 'completed' && { completed_at: new Date().toISOString() })
-        })
-        .eq('id', returnId);
-
-      if (error) throw error;
+      await updateLocalReturnStatus(returnId, newStatus);
 
       await createAuditLog({
         action: 'UPDATE_RETURN_STATUS',
@@ -206,24 +196,20 @@ export const ReturnsRefunds = () => {
       });
 
       loadData();
-    } catch (error: any) {
+      // Refresh inventory/customer figures after a completed return restocks and reverses money.
+      if (newStatus === 'completed') await reloadStore();
+    } catch (error: unknown) {
       console.error('Error updating status:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update status',
+        description: error instanceof Error ? error.message : 'Failed to update status',
         variant: 'destructive'
       });
     }
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: any = {
-      pending: 'secondary',
-      approved: 'default',
-      rejected: 'destructive',
-      completed: 'default'
-    };
-    return <Badge variant={variants[status] || 'secondary'}>{status}</Badge>;
+    return <Badge variant={statusVariants[status] ?? 'secondary'}>{status}</Badge>;
   };
 
   if (loading) {
@@ -251,7 +237,7 @@ export const ReturnsRefunds = () => {
             <div className="space-y-4">
               <div>
                 <Label>Sale Reference *</Label>
-                <Select value={newReturn.sale_id} onValueChange={(value) => setNewReturn({...newReturn, sale_id: value})}>
+                <Select value={newReturn.sale_id} onValueChange={handleSaleChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select sale" />
                   </SelectTrigger>
@@ -265,25 +251,35 @@ export const ReturnsRefunds = () => {
                 </Select>
               </div>
               <div>
-                <Label>Product *</Label>
-                <Select value={newReturn.product_id} onValueChange={handleProductChange}>
+                <Label>Product (from this sale) *</Label>
+                <Select
+                  value={newReturn.product_id}
+                  onValueChange={handleProductChange}
+                  disabled={!selectedSale || selectedSale.items.length === 0}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select product" />
+                    <SelectValue placeholder={selectedSale ? 'Select product' : 'Select a sale first'} />
                   </SelectTrigger>
                   <SelectContent>
-                    {products.map(product => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - {formatCurrency(product.selling_price)}
-                      </SelectItem>
-                    ))}
+                    {selectedSale?.items.map(line => {
+                      const remaining = line.quantity - (returnedByProduct[line.product_id] ?? 0);
+                      return (
+                        <SelectItem key={line.product_id} value={line.product_id} disabled={remaining <= 0}>
+                          {line.product_name} — bought {line.quantity} @ {formatCurrency(line.unit_price)}
+                          {remaining <= 0 ? ' (fully returned)' : `, ${remaining} returnable`}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Quantity *</Label>
+                <Label>Quantity * {selectedLine ? `(max ${returnable})` : ''}</Label>
                 <Input
                   type="number"
                   min="1"
+                  max={returnable || undefined}
+                  disabled={!selectedLine}
                   value={newReturn.quantity}
                   onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
                 />
@@ -302,12 +298,12 @@ export const ReturnsRefunds = () => {
                 </Select>
               </div>
               <div>
-                <Label>Refund Amount *</Label>
+                <Label>Refund Amount (computed from sale price)</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  value={newReturn.refund_amount}
-                  onChange={(e) => setNewReturn({...newReturn, refund_amount: parseFloat(e.target.value) || 0})}
+                  type="text"
+                  readOnly
+                  disabled
+                  value={selectedLine ? formatCurrency(computedRefund) : '—'}
                 />
               </div>
               <div>
@@ -350,8 +346,10 @@ export const ReturnsRefunds = () => {
           </Card>
         ) : (
           returns.map(returnItem => {
-            const product = products.find(p => p.id === returnItem.product_id);
-            
+            const product = storeSales
+              .flatMap(s => s.items ?? [])
+              .find(i => i.product_id === returnItem.product_id);
+
             return (
               <Card key={returnItem.id}>
                 <CardHeader className="pb-3">
@@ -359,7 +357,7 @@ export const ReturnsRefunds = () => {
                     <div className="flex-1">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <RotateCcw className="h-4 w-4" />
-                        {product?.name || 'Unknown Product'}
+                        {product?.product_name || returnItem.product_id}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground mt-1">
                         Sale: {returnItem.sale_id.slice(0, 8)}...

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
+import type { Customer } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Users, Search, Plus, CreditCard, AlertTriangle } from 'lucide-react';
@@ -15,7 +16,7 @@ export const CustomersView = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-const [selectedCustomer, setSelectedCustomer] = useState<unknown>(null);
+const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [newCustomer, setNewCustomer] = useState({
     name: '',
@@ -142,7 +143,7 @@ const [selectedCustomer, setSelectedCustomer] = useState<unknown>(null);
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h4 className="font-medium">{customer.name}</h4>
-                      <Badge variant={creditStatus.variant as any}>
+                      <Badge variant={creditStatus.variant as BadgeProps['variant']}>
                         {creditStatus.status}
                       </Badge>
                       {customer.outstanding_balance > customer.credit_limit && (
