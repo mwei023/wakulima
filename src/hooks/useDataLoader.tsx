@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useStore } from '@/store/useStore';
+import { startLiveSync } from '@/lib/liveSync';
 import { toast } from '@/hooks/use-toast';
 
 export function useDataLoader() {
@@ -20,5 +21,12 @@ export function useDataLoader() {
     };
 
     initializeData();
+
+    // Keep products/customers/sales live (same tab and other tabs) after the
+    // initial load — liveQuery re-pushes on every IndexedDB write.
+    const stopLiveSync = startLiveSync();
+    return () => {
+      stopLiveSync();
+    };
   }, [loadData]);
 }

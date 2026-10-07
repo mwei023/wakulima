@@ -72,12 +72,15 @@ Goal: correctness and integrity of the money paths. Features wait.
       `void_sale` audit entry in one transaction), store `voidSale` action,
       returns against voided sales are blocked, 5 unit tests.
 
-### 1.2 Concurrency and multi-device reality
+### 1.2 Concurrency and multi-device reality ✅ (done)
 Even "local-only" apps run in two browser tabs.
-- [ ] Use Dexie's `liveQuery` (or `dexie-react-hooks`) so every open tab updates
-      instead of showing stale stock.
-- [ ] Add a test: two overlapping sales for the same last unit — one must fail
-      cleanly inside the transaction.
+- [x] `startLiveSync` (src/lib/liveSync.ts) subscribes Dexie `liveQuery` for
+      products/customers/sales into the store, wired in useDataLoader. Dexie 4
+      propagates cross-tab, so every open tab updates instead of showing stale
+      stock (proven by e2e/multiTab.spec.ts). Concurrent first-run seeding made
+      safe (bulkPut).
+- [x] Test: two overlapping sales for the same last unit — one fails cleanly
+      inside the transaction (db.test.ts), exactly one sale recorded, stock 0.
 
 ### 1.3 Money hygiene
 - [ ] Replace float arithmetic for money with integer cents everywhere

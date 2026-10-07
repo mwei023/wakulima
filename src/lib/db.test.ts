@@ -289,6 +289,38 @@ describe('voidLocalSale', () => {
     await expect(voidLocalSale('nonexistent-sale', 'x', null)).rejects.toThrow(/Sale not found/);
   });
 
+  it('two overlapping sales for the last unit: one fails cleanly', async () => {
+    const product = (await db.localProducts.toArray())[0];
+    // Force the stock down to exactly one unit.
+    await db.localProducts.update(product.id, { stock_quantity: 1 });
+
+    const line = [
+      {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: 1,
+        unit_price: product.selling_price,
+        total_line: product.selling_price,
+      },
+    ];
+
+    // Both transactions start together; the loser must throw and change nothing.
+    const results = await Promise.allSettled([
+      processLocalSale(STORE_ID, null, 'cash', line, product.selling_price),
+      processLocalSale(STORE_ID, null, 'cash', line, product.selling_price),
+    ]);
+
+    const winners = results.filter(r => r.status === 'fulfilled');
+    const losers = results.filter(r => r.status === 'rejected');
+    expect(winners).toHaveLength(1);
+    expect(losers).toHaveLength(1);
+    expect((losers[0] as PromiseRejectedResult).reason).toMatchObject({ message: /Insufficient stock/ });
+
+    // Database ends in the correct state: exactly one sale, stock at zero.
+    expect(await db.localSales.count()).toBe(1);
+    expect((await db.localProducts.get(product.id))!.stock_quantity).toBe(0);
+  });
+
   it('blocks returns against a voided sale', async () => {
     const product = (await db.localProducts.toArray())[0];
     const saleId = await processLocalSale(

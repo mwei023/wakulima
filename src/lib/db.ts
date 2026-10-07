@@ -70,8 +70,10 @@ export async function seedLocal(): Promise<void> {
   const count = await db.localProducts.count();
   if (count > 0) return;
   await db.transaction('rw', [db.localProducts, db.localCustomers, db.localSales], async () => {
-    await db.localProducts.bulkAdd(mockProducts.map(p => ({ ...p, store_id: STORE_ID })));
-    await db.localCustomers.bulkAdd(mockCustomers);
+    // bulkPut, not bulkAdd: two tabs can open the app at the same moment and
+    // both pass the count check above. Upsert makes concurrent seeding safe.
+    await db.localProducts.bulkPut(mockProducts.map(p => ({ ...p, store_id: STORE_ID })));
+    await db.localCustomers.bulkPut(mockCustomers);
   });
 }
 
