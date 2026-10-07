@@ -6,13 +6,33 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number): string {
+/**
+ * Money convention (Phase 1.3): every money field stored or computed in the app
+ * is an INTEGER number of cents (KES × 100). Float arithmetic never touches the
+ * books; conversion to/from shillings happens only at the UI boundary.
+ */
+export const CENTS_PER_KES = 100;
+
+/** KES (possibly fractional) → integer cents, rounded to the nearest cent. */
+export function kesToCents(kes: number | string): number {
+  const n = typeof kes === 'string' ? parseFloat(kes) : kes;
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * CENTS_PER_KES);
+}
+
+/** Integer cents → KES as a number (for display and exports). */
+export function centsToKes(cents: number): number {
+  return cents / CENTS_PER_KES;
+}
+
+/** Integer cents → formatted KES string. */
+export function formatCurrency(cents: number): string {
   return new Intl.NumberFormat('en-KE', {
     style: 'currency',
     currency: 'KES',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+    maximumFractionDigits: 2,
+  }).format(centsToKes(cents));
 }
 
 export function formatDate(date: string | Date): string {

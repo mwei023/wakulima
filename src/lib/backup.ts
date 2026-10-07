@@ -21,7 +21,7 @@ interface BackupRecord {
 }
 
 export interface BackupPayload {
-  schema_version: 1;
+  schema_version: 1 | 2;
   created_at: string;
   products: Product[];
   customers: Customer[];
@@ -52,7 +52,7 @@ export async function createBackupPayload(): Promise<BackupPayload> {
     db.localAudit.toArray(),
   ]);
   return {
-    schema_version: 1,
+    schema_version: 2,
     created_at: new Date().toISOString(),
     products,
     customers,
@@ -96,14 +96,55 @@ export async function latestBackupMeta(): Promise<{ id: number; created_at: stri
   return last ? { id: last.id!, created_at: last.created_at } : null;
 }
 
+const toCents = (v: unknown): number => Math.round((typeof v === 'number' && Number.isFinite(v) ? v : 0) * 100);
+
+/** Upgrade a legacy v1 (KES floats) payload to v2 (integer cents) in memory. */
+function convertV1ToV2(payload: BackupPayload): BackupPayload {
+  return {
+    ...payload,
+    schema_version: 2,
+    products: payload.products.map(p => ({
+      ...p,
+      selling_price: toCents(p.selling_price),
+      cost_price: toCents(p.cost_price),
+    })),
+    customers: payload.customers.map(c => ({
+      ...c,
+      credit_limit: toCents(c.credit_limit),
+      outstanding_balance: toCents(c.outstanding_balance),
+    })),
+    sales: payload.sales.map(s => ({
+      ...s,
+      total_amount: toCents(s.total_amount),
+      mpesa_reference: s.mpesa_reference,
+      receipt_number: s.receipt_number,
+      items: s.items.map(i => ({
+        ...i,
+        unit_price: toCents(i.unit_price),
+        total_line: toCents(i.total_line),
+      })),
+    })),
+    returns: payload.returns.map(r => ({
+      ...r,
+      refund_amount: toCents(r.refund_amount),
+    })),
+  };
+}
+
 /**
  * Restore wipes the main tables and re-inserts the snapshot inside one
  * transaction: either the restore fully happens or nothing changes.
  */
 export async function restoreFromPayload(payload: BackupPayload): Promise<void> {
-  if (payload.schema_version !== 1) {
+  if (payload.schema_version !== 1 && payload.schema_version !== 2) {
     throw new Error(`Unsupported backup schema version: ${payload.schema_version}`);
   }
+  // v1 backups stored KES floats; v2 stores integer cents. Convert v1 up on
+  // the way in so the DB is always cents after a restore.
+  const normalized =
+    payload.schema_version === 1
+      ? convertV1ToV2(payload)
+      : payload;
   await db.transaction(
     'rw',
     [db.localProducts, db.localCustomers, db.localSales, db.localReturns, db.localAudit],
@@ -115,11 +156,11 @@ export async function restoreFromPayload(payload: BackupPayload): Promise<void> 
         db.localReturns.clear(),
         db.localAudit.clear(),
       ]);
-      await db.localProducts.bulkAdd(payload.products);
-      await db.localCustomers.bulkAdd(payload.customers);
-      await db.localSales.bulkAdd(payload.sales);
-      await db.localReturns.bulkAdd(payload.returns);
-      await db.localAudit.bulkAdd(payload.audit);
+      await db.localProducts.bulkAdd(normalized.products);
+      await db.localCustomers.bulkAdd(normalized.customers);
+      await db.localSales.bulkAdd(normalized.sales);
+      await db.localReturns.bulkAdd(normalized.returns);
+      await db.localAudit.bulkAdd(normalized.audit);
     }
   );
 }

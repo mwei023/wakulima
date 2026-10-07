@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { CategoryManager } from './CategoryManager';
 import { toast } from '@/hooks/use-toast';
-import { formatCurrency, activeSales } from '@/lib/utils';
+import { formatCurrency, activeSales, centsToKes } from '@/lib/utils';
 import { getStorageStatus, formatBytes, StorageStatus as StorageStatusInfo } from '@/lib/storage';
 import { daysSinceLastOffDeviceBackup } from '@/lib/backupReminder';
 import type { BadgeProps } from '@/components/ui/badge';
@@ -33,7 +33,8 @@ export const Settings = () => {
     const csvData = sales.map(sale => ({
       date: new Date(sale.timestamp).toLocaleDateString(),
       customer: sale.customer_id || 'Walk-in',
-      total: sale.total_amount,
+      // Exports present KES, not internal integer cents.
+      total: centsToKes(sale.total_amount),
       payment: sale.payment_method,
       status: sale.status
     }));

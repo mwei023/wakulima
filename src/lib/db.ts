@@ -26,12 +26,21 @@ export interface LocalAuditEntry {
   created_at: string;
 }
 
+/** Key/value counter storage (receipt sequence and future cursors). */
+export interface LocalMetaEntry {
+  key: string;
+  value: number;
+}
+
+export const RECEIPT_SEQ_KEY = 'receipt_seq';
+
 class OfflineDatabase extends Dexie {
   localProducts!: Table<Product, string>;
   localCustomers!: Table<Customer, string>;
   localSales!: Table<Sale, string>;
   localReturns!: Table<LocalReturn, string>;
   localAudit!: Table<LocalAuditEntry, string>;
+  localMeta!: Table<LocalMetaEntry, string>;
 
   constructor() {
     super('WakulimaAgrovetDB');
@@ -58,6 +67,40 @@ class OfflineDatabase extends Dexie {
       conflicts: null,
       localTransfers: null
     });
+    // v6: integer-cents money everywhere + localMeta counters. Existing v5
+    // databases stored KES floats — multiply once, inside the upgrade.
+    this.version(6)
+      .stores({
+        localProducts: 'id, store_id, category',
+        localCustomers: 'id',
+        localSales: 'id, store_id, timestamp',
+        localReturns: 'id, sale_id, status, created_at',
+        localAudit: 'id, created_at, table_name, action',
+        localMeta: 'key'
+      })
+      .upgrade(async tx => {
+        const toCents = (v: unknown): number => Math.round((typeof v === 'number' && Number.isFinite(v) ? v : 0) * 100);
+        const products = await tx.table('localProducts').toArray();
+        for (const p of products) {
+          await tx.table('localProducts').put({ ...p, selling_price: toCents(p.selling_price), cost_price: toCents(p.cost_price) });
+        }
+        const customers = await tx.table('localCustomers').toArray();
+        for (const c of customers) {
+          await tx.table('localCustomers').put({ ...c, credit_limit: toCents(c.credit_limit), outstanding_balance: toCents(c.outstanding_balance) });
+        }
+        const sales = await tx.table('localSales').toArray();
+        for (const s of sales) {
+          await tx.table('localSales').put({
+            ...s,
+            total_amount: toCents(s.total_amount),
+            items: s.items.map(i => ({ ...i, unit_price: toCents(i.unit_price), total_line: toCents(i.total_line) }))
+          });
+        }
+        const returns = await tx.table('localReturns').toArray();
+        for (const r of returns) {
+          await tx.table('localReturns').put({ ...r, refund_amount: toCents(r.refund_amount) });
+        }
+      });
   }
 }
 
@@ -77,15 +120,28 @@ export async function seedLocal(): Promise<void> {
   });
 }
 
+// Sequential counters (receipt numbers and future cursors). The counter row
+// is created on first use; increments happen in their own transaction so a
+// rolled-back sale never burns a number's uniqueness guarantee.
+export async function nextSeq(key: string): Promise<number> {
+  return db.transaction('rw', db.localMeta, async () => {
+    const entry = (await db.localMeta.get(key)) ?? { key, value: 0 };
+    const next = entry.value + 1;
+    await db.localMeta.put({ key, value: next });
+    return next;
+  });
+}
+
 // Atomic local sale: checks stock + credit, decrements, inserts sale. Throws on validation.
 export async function processLocalSale(
   storeId: string,
   customerId: string | null,
   paymentMethod: 'cash' | 'mpesa' | 'credit',
   items: { product_id: string; product_name: string; quantity: number; unit_price: number; total_line: number }[],
-  totalAmount: number
+  totalAmount: number,
+  mpesaReference?: string
 ): Promise<string> {
-  return db.transaction('rw', [db.localProducts, db.localCustomers, db.localSales], async () => {
+  return db.transaction('rw', [db.localProducts, db.localCustomers, db.localSales, db.localMeta], async () => {
     if (paymentMethod === 'credit') {
       if (!customerId || customerId === 'walk-in') throw new Error('Credit sales require a registered customer');
       const customer = await db.localCustomers.get(customerId);
@@ -93,6 +149,11 @@ export async function processLocalSale(
       if (customer.outstanding_balance + totalAmount > customer.credit_limit) {
         throw new Error('Sale exceeds customer credit limit');
       }
+    }
+    if (paymentMethod === 'mpesa') {
+      const ref = (mpesaReference ?? '').trim();
+      if (!ref) throw new Error('M-Pesa reference is required for M-Pesa sales');
+      if (ref.length > 32) throw new Error('M-Pesa reference must be 32 characters or fewer');
     }
     for (const item of items) {
       const product = await db.localProducts.get(item.product_id);
@@ -115,10 +176,12 @@ export async function processLocalSale(
       customer_id: customerId,
       total_amount: totalAmount,
       payment_method: paymentMethod,
+      ...(paymentMethod === 'mpesa' ? { mpesa_reference: (mpesaReference ?? '').trim() } : {}),
+      receipt_number: await nextSeq(RECEIPT_SEQ_KEY),
       status: 'completed',
       timestamp: new Date().toISOString(),
       store_id: storeId,
-      items: items.map(item => ({ ...item, id: crypto.randomUUID(), sale_id: saleId }))
+      items: items.map((item, i) => ({ ...item, id: crypto.randomUUID(), sale_id: saleId, item_seq: i + 1 }))
     };
     await db.localSales.add(sale);
     return saleId;
@@ -198,7 +261,8 @@ export async function createLocalReturn(input: {
     }
 
     // Money must be refunded at the price the customer actually paid.
-    const refund_amount = Math.round(line.unit_price * quantity * 100) / 100;
+    // Integer cents × integer quantity stays exact — no rounding needed.
+    const refund_amount = line.unit_price * quantity;
 
     const entry: LocalReturn = {
       sale_id: input.sale_id,

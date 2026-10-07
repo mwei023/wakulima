@@ -32,7 +32,7 @@ interface StoreState {
   setSelectedCustomer: (customer: Customer | null) => void;
 
   // Sales actions
-  completeSale: (paymentMethod: 'cash' | 'mpesa' | 'credit') => Promise<string | null>;
+  completeSale: (paymentMethod: 'cash' | 'mpesa' | 'credit', mpesaReference?: string) => Promise<string | null>;
   voidSale: (saleId: string, reason: string) => Promise<string | null>;
 
   // Inventory actions
@@ -188,7 +188,7 @@ export const useStore = create<StoreState>()(
       },
 
       // Sales actions (atomic local transaction: stock + credit checked together)
-      completeSale: async (paymentMethod: 'cash' | 'mpesa' | 'credit') => {
+      completeSale: async (paymentMethod: 'cash' | 'mpesa' | 'credit', mpesaReference?: string) => {
         const { cart, selectedCustomer, products } = get();
 
         const validCart = cart.filter(item => item.product?.id && typeof item.product.id === 'string' && item.product.id !== '');
@@ -236,7 +236,8 @@ export const useStore = create<StoreState>()(
               unit_price: item.product.selling_price,
               total_line: item.total
             })),
-            totalAmount
+            totalAmount,
+            mpesaReference
           );
 
           const { products: freshProducts, customers: freshCustomers, sales: freshSales } =

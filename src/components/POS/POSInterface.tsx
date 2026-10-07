@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useStore } from '@/store/useStore';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
-import { offlineManager } from '@/lib/db';
+import { db, offlineManager } from '@/lib/db';
 import { Product, Sale, SaleItem } from '@/types';
 
 export const POSInterface = () => {
@@ -33,6 +33,7 @@ export const POSInterface = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'mpesa' | 'credit'>('cash');
+  const [mpesaReference, setMpesaReference] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [lastSale, setLastSale] = useState<Sale | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -133,8 +134,17 @@ export const POSInterface = () => {
 
     setIsProcessing(true);
 
-    // Snapshot cart before completeSale clears it
-    const cartSnapshot = [...cart];
+    // M-Pesa reference is mandatory — the books must say which phone/code paid.
+    if (paymentMethod === 'mpesa' && mpesaReference.trim().length === 0) {
+      toast({
+        title: "M-Pesa reference required",
+        description: "Enter the phone number or confirmation code used to pay.",
+        variant: "destructive"
+      });
+      setIsProcessing(false);
+      return;
+    }
+
     const totalSnapshot = cartTotal;
     const customerSnapshot = selectedCustomer;
 
@@ -162,7 +172,7 @@ export const POSInterface = () => {
       }
     }
 
-    const error = await completeSale(paymentMethod);
+    const error = await completeSale(paymentMethod, paymentMethod === 'mpesa' ? mpesaReference.trim() : undefined);
     if (error) {
       toast({
         title: "Sale Failed",
@@ -171,36 +181,17 @@ export const POSInterface = () => {
       });
       setIsProcessing(false);
     } else {
-      // Create sale for receipt from snapshot (completeSale clears the cart)
-      const sale = {
-        id: crypto.randomUUID(),
-        customer_id: customerSnapshot?.id || null,
-        total_amount: totalSnapshot,
-        payment_method: paymentMethod,
-        timestamp: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        created_by: null,
-        status: 'synced' as const,
-        updated_at: new Date().toISOString(),
-        store_id: currentStoreId || '',
-        items: cartSnapshot.map(item => ({
-          id: Date.now().toString() + Math.random(),
-          product_id: item.product.id,
-          product_name: item.product.name,
-          quantity: item.quantity,
-          unit_price: item.product.selling_price,
-          total_line: item.total,
-          sale_id: Date.now().toString(),
-          created_at: new Date().toISOString()
-        }))
-      };
-      
-      setLastSale(sale);
+      // The store action returns only an error string, so pull the just-saved
+      // sale (newest by timestamp) for the printed receipt — it carries the
+      // sequential receipt number and canonical item rows.
+      const saved = await db.localSales.orderBy('timestamp').reverse().first();
+      if (saved) setLastSale(saved);
       toast({
         title: "Sale Completed",
         description: `Sale of ${formatCurrency(totalSnapshot)} completed successfully`,
       });
       setPaymentMethod('cash');
+      setMpesaReference('');
       setIsProcessing(false);
     }
   };
@@ -445,6 +436,20 @@ export const POSInterface = () => {
                   </Button>
                 </div>
               </div>
+
+              {/* M-Pesa reference (required for mpesa sales) */}
+              {paymentMethod === 'mpesa' && (
+                <div>
+                  <label className="text-sm font-medium">M-Pesa Reference</label>
+                  <Input
+                    value={mpesaReference}
+                    onChange={(e) => setMpesaReference(e.target.value)}
+                    placeholder="Phone number or confirmation code"
+                    maxLength={32}
+                    className="mt-2"
+                  />
+                </div>
+              )}
 
               {/* Totals */}
               <div className="border-t pt-4">

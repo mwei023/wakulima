@@ -8,7 +8,7 @@ import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Users, Search, Plus, CreditCard, AlertTriangle } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, kesToCents } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
 export const CustomersView = () => {
@@ -39,7 +39,8 @@ const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
       addCustomer({
         name: newCustomer.name,
         phone: newCustomer.phone,
-        credit_limit: parseInt(newCustomer.credit_limit) || 0,
+        // Money is integer cents; the form collects KES.
+        credit_limit: kesToCents(parseInt(newCustomer.credit_limit, 10) || 0),
         outstanding_balance: 0
       });
       toast({
@@ -53,7 +54,7 @@ const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const handlePayment = () => {
     if (selectedCustomer && paymentAmount) {
-      const amount = parseFloat(paymentAmount);
+      const amount = kesToCents(parseFloat(paymentAmount));
       if (amount > 0) {
         updateCustomerBalance(selectedCustomer.id, -amount);
         toast({

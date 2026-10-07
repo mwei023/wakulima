@@ -26,8 +26,16 @@ export interface Customer {
 export interface Sale {
   id: string;
   customer_id: string | null;
+  /** Integer cents (KES × 100) — see utils.kesToCents. */
   total_amount: number;
   payment_method: 'cash' | 'mpesa' | 'credit';
+  /**
+   * M-Pesa reference (phone or confirmation code) when payment_method is
+   * 'mpesa'. Validated in POSInterface, stored verbatim, printed on receipt.
+   */
+  mpesa_reference?: string;
+  /** Sequential receipt number (1-based), assigned transactionally per sale. */
+  receipt_number?: number;
   // Tolerant union: legacy records may say 'synced'/'pending'; lifecycle is
   // 'completed' (counts toward money totals) or 'voided' (excluded from money
   // totals). Not an indexed field, so no Dexie version bump is needed.
@@ -43,7 +51,9 @@ export interface SaleItem {
   product_id: string;
   product_name: string;
   quantity: number;
+  /** Integer cents (KES × 100) — see utils.kesToCents. */
   unit_price: number;
+  /** Integer cents (KES × 100) — see utils.kesToCents. */
   total_line: number;
 }
 

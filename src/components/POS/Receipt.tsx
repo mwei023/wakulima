@@ -16,7 +16,11 @@ interface ReceiptProps {
 
 export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
   ({ sale, customer, businessInfo }, ref) => {
-    const receiptNumber = `RCP-${sale.id.slice(-6).toUpperCase()}`;
+    // Sequential, auditable number when present; UUID-derived fallback for
+    // legacy sales saved before receipt numbers existed.
+    const receiptNumber = sale.receipt_number
+      ? `#${String(sale.receipt_number).padStart(4, '0')}`
+      : `RCP-${sale.id.slice(-6).toUpperCase()}`;
     
     return (
       <div ref={ref} className="max-w-sm mx-auto bg-white p-4 text-black font-mono text-sm">
@@ -96,6 +100,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             <span>Payment:</span>
             <span className="capitalize">{sale.payment_method}</span>
           </div>
+          {sale.payment_method === 'mpesa' && sale.mpesa_reference && (
+            <div className="flex justify-between">
+              <span>M-Pesa Ref:</span>
+              <span>{sale.mpesa_reference}</span>
+            </div>
+          )}
         </div>
         
         <Separator className="my-2" />

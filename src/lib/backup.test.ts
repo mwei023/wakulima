@@ -43,7 +43,7 @@ describe('rolling backups', () => {
 
     const payload = await getBackup(latest!.id);
     expect(payload).not.toBeNull();
-    expect(payload!.schema_version).toBe(1);
+    expect(payload!.schema_version).toBe(2);
     expect(payload!.products.length).toBeGreaterThan(0);
     expect(payload!.customers.length).toBeGreaterThan(0);
   });
@@ -92,6 +92,25 @@ describe('rolling backups', () => {
     await expect(
       restoreFromPayload({ ...payload, schema_version: 999 as unknown as 1 })
     ).rejects.toThrow(/Unsupported backup schema version/);
+  });
+
+  it('converts legacy v1 (KES floats) payloads to cents on restore', async () => {
+    const payload = await createBackupPayload();
+    const v1 = {
+      ...payload,
+      schema_version: 1 as const,
+      products: payload.products.map(p => ({ ...p, selling_price: 35.5, cost_price: 32.25 })),
+      customers: payload.customers.map(c => ({ ...c, credit_limit: 1000, outstanding_balance: 250 })),
+      sales: [],
+      returns: [],
+    };
+    await restoreFromPayload(v1);
+    const restored = await db.localProducts.toArray();
+    expect(restored.find(p => p.selling_price === 3550)).toBeTruthy();
+    expect(restored.every(p => p.selling_price === Math.round(p.selling_price))).toBe(true);
+    const cust = await db.localCustomers.toArray();
+    expect(cust.find(c => c.credit_limit === 100000)).toBeTruthy();
+    expect(cust.every(c => c.credit_limit === Math.round(c.credit_limit))).toBe(true);
   });
 
   it('runRollingBackupIfDue runs once, then stays quiet within the window', async () => {

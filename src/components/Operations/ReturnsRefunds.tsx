@@ -106,8 +106,9 @@ export const ReturnsRefunds = () => {
 
   const selectedLine = selectedSale?.items.find(i => i.product_id === newReturn.product_id) ?? null;
   const returnable = selectedLine ? selectedLine.quantity - (returnedByProduct[selectedLine.product_id] ?? 0) : 0;
-  // Refund is always computed from what the customer actually paid — never editable.
-  const computedRefund = selectedLine ? Math.round(selectedLine.unit_price * newReturn.quantity * 100) / 100 : 0;
+  // Refund is always computed from what the customer actually paid — never
+  // editable. Integer cents × integer quantity is exact; no rounding.
+  const computedRefund = selectedLine ? selectedLine.unit_price * newReturn.quantity : 0;
 
   const handleSaleChange = (saleId: string) => {
     setNewReturn({ ...newReturn, sale_id: saleId, product_id: '', quantity: 1 });

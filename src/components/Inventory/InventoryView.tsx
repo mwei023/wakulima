@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useStore } from '@/store/useStore';
 import { useRole } from '@/hooks/useRole';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, kesToCents, centsToKes } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { Product } from '@/types';
 import { CategorySelector } from './CategorySelector';
@@ -113,8 +113,8 @@ export const InventoryView = () => {
         name: p.name,
         category: p.category,
         unit: p.unit,
-        selling_price: Number(p.selling_price) || 0,
-        cost_price: Number(p.cost_price) || 0,
+        selling_price: kesToCents(Number(p.selling_price) || 0),
+        cost_price: kesToCents(Number(p.cost_price) || 0),
         stock_quantity: Number(p.stock_quantity) || 0,
         reorder_level: Number(p.reorder_level) || 0,
         barcode: p.barcode,
@@ -309,8 +309,9 @@ const ProductForm = ({
     name: product?.name || '',
     category: product?.category || '',
     unit: product?.unit || '',
-    selling_price: product?.selling_price || 0,
-    cost_price: product?.cost_price || 0,
+    // Money fields are stored as integer cents; the form edits KES.
+    selling_price: centsToKes(product?.selling_price ?? 0),
+    cost_price: centsToKes(product?.cost_price ?? 0),
     stock_quantity: product?.stock_quantity || 0,
     reorder_level: product?.reorder_level || 0,
     barcode: product?.barcode || '',
@@ -319,7 +320,8 @@ const ProductForm = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Convert the KES-edited price fields back to integer cents on the way out.
+    onSubmit({ ...formData, selling_price: kesToCents(formData.selling_price), cost_price: kesToCents(formData.cost_price) });
   };
 
   return (
@@ -430,8 +432,8 @@ const ProductEditForm = ({
     name: product?.name || '',
     category: product?.category || '',
     unit: product?.unit || '',
-    selling_price: product?.selling_price || 0,
-    cost_price: product?.cost_price || 0,
+    selling_price: centsToKes(product?.selling_price ?? 0),
+    cost_price: centsToKes(product?.cost_price ?? 0),
     stock_quantity: product?.stock_quantity || 0,
     reorder_level: product?.reorder_level || 0,
     barcode: product?.barcode || ''
@@ -443,6 +445,9 @@ const ProductEditForm = ({
     onSubmit({ 
       ...product, 
       ...formData,
+      // KES-edited price fields go back to integer cents on the way out.
+      selling_price: kesToCents(formData.selling_price),
+      cost_price: kesToCents(formData.cost_price),
       updated_at: new Date().toISOString()
     });
   };

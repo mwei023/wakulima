@@ -41,13 +41,17 @@ export const saleItemSchema = z.object({
   quantity: z.number(),
   unit_price: z.number().nonnegative(),
   total_line: z.number(),
+  item_seq: z.number().int().positive().optional(),
 });
 
 export const saleSchema = z.object({
   id: z.string().min(1),
   customer_id: z.string().nullable(),
+  // v1 payloads: KES floats. v2 payloads: integer cents (KES × 100).
   total_amount: z.number().nonnegative(),
   payment_method: z.enum(['cash', 'mpesa', 'credit']),
+  mpesa_reference: z.string().max(32).optional(),
+  receipt_number: z.number().int().positive().optional(),
   status: z.enum(['completed', 'voided', 'pending', 'synced']),
   timestamp: isoDate,
   store_id: z.string().min(1),
@@ -80,7 +84,8 @@ export const auditEntrySchema = z.object({
 });
 
 export const backupPayloadSchema = z.object({
-  schema_version: z.literal(1),
+  // v1: KES floats (legacy backups). v2: integer cents (current).
+  schema_version: z.union([z.literal(1), z.literal(2)]),
   created_at: isoDate,
   products: z.array(productSchema),
   customers: z.array(customerSchema),

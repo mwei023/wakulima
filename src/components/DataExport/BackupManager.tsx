@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useStore } from '@/store/useStore';
-import { formatDate, formatCurrency, activeSales } from '@/lib/utils';
+import { formatDate, formatCurrency, activeSales, centsToKes } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { 
   Download, Database, FileText, Shield,
@@ -37,8 +37,9 @@ export const BackupManager = () => {
           Name: product.name,
           Category: product.category,
           Unit: product.unit,
-          'Selling Price': product.selling_price,
-          'Cost Price': product.cost_price,
+          // Exports present KES, not internal integer cents.
+          'Selling Price': centsToKes(product.selling_price),
+          'Cost Price': centsToKes(product.cost_price),
           'Stock Quantity': product.stock_quantity,
           'Reorder Level': product.reorder_level,
           Barcode: product.barcode || '',
@@ -57,8 +58,8 @@ export const BackupManager = () => {
             ID: customer.id,
             Name: customer.name,
             Phone: customer.phone,
-            'Credit Limit': customer.credit_limit,
-            'Outstanding Balance': customer.outstanding_balance,
+            'Credit Limit': centsToKes(customer.credit_limit),
+            'Outstanding Balance': centsToKes(customer.outstanding_balance),
             'Created Date': formatDate(customer.created_at)
           }));
         const ws2 = XLSX.utils.json_to_sheet(customersData);
@@ -70,7 +71,7 @@ export const BackupManager = () => {
         const salesData = sales.map(sale => ({
           'Sale ID': sale.id,
           'Customer ID': sale.customer_id || 'Walk-in',
-          'Total Amount': sale.total_amount,
+          'Total Amount': centsToKes(sale.total_amount),
           'Payment Method': sale.payment_method,
           Status: sale.status,
           Date: formatDate(sale.timestamp),

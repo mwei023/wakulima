@@ -82,14 +82,21 @@ Even "local-only" apps run in two browser tabs.
 - [x] Test: two overlapping sales for the same last unit — one fails cleanly
       inside the transaction (db.test.ts), exactly one sale recorded, stock 0.
 
-### 1.3 Money hygiene
-- [ ] Replace float arithmetic for money with integer cents everywhere
-      (`processLocalSale`, cart totals, refunds). This is a real shop; 0.1 + 0.2
-      must not equal 0.30000000000000004 in the books.
-- [ ] Explicit M-Pesa handling: a reference field (phone/confirmation code) on
-      sales, validated and printed on the receipt.
-- [ ] Receipt: add PIN/ VAT where applicable and a sequential receipt number
-      (currently uses UUIDs — not auditable sequence).
+### 1.3 Money hygiene ✅ (done)
+- [x] Integer cents (KES × 100) everywhere money is stored or computed:
+      types documented, mock data converted, Dexie v6 upgrade migrates
+      existing KES-float databases in-place, backup schema v2 with live
+      v1 → v2 conversion on restore, `kesToCents`/`centsToKes`/`formatCurrency`
+      as the only UI-boundary converters (`src/lib/money.test.ts` pins the
+      0.1 + 0.2 case), exact refund math (cents × qty, no rounding).
+- [x] Explicit M-Pesa handling: required reference field (phone/confirmation
+      code, ≤32 chars, trimmed), validated in POS + db.ts, stored on the sale,
+      printed on the receipt.
+- [x] Sequential receipt numbers (1-based, per-shop counter in `localMeta`,
+      handed out inside the sale transaction), printed as `#0001`-style with
+      UUID fallback for legacy rows. Note: VAT/PIN left at the existing 0%
+      placeholder — feed and vet medicines are VAT-exempt; revisit if the
+      shop sells VATable lines.
 
 ### 1.4 Test coverage to match the money
 - [ ] Unit: credit-limit boundary (exactly at limit), return-of-return idempotency,
