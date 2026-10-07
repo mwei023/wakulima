@@ -13,7 +13,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22 LTS: jsdom 30's bundled undici requires
+          # util.markAsUncloneable, which Node 20 lacks.
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
