@@ -26,6 +26,7 @@ import {
   Menu,
   User,
   RotateCcw,
+  ReceiptText,
   Shield
 } from 'lucide-react';
 import { POSInterface } from '@/components/POS/POSInterface';
@@ -37,6 +38,7 @@ const SupplierManager = lazy(() => import('@/components/Inventory/SupplierManage
 const BackupManager = lazy(() => import('@/components/DataExport/BackupManager').then(m => ({ default: m.BackupManager })));
 const Settings = lazy(() => import('@/components/Settings/Settings').then(m => ({ default: m.Settings })));
 const ReturnsRefunds = lazy(() => import('@/components/Operations/ReturnsRefunds').then(m => ({ default: m.ReturnsRefunds })));
+const SalesHistory = lazy(() => import('@/components/Operations/SalesHistory').then(m => ({ default: m.SalesHistory })));
 const AuditLog = lazy(() => import('@/components/Admin/AuditLog').then(m => ({ default: m.AuditLog })));
 
 export const Layout = () => {
@@ -160,6 +162,17 @@ export const Layout = () => {
                         Returns
                       </Button>
                       {isAdmin && (
+                        <Button
+                          variant={activeTab === 'sales-history' ? 'secondary' : 'ghost'}
+                          size="sm"
+                          onClick={() => setActiveTab('sales-history')}
+                          className="justify-start gap-2"
+                        >
+                          <ReceiptText className="h-4 w-4" />
+                          Sales
+                        </Button>
+                      )}
+                      {isAdmin && (
                         <>
                           <Button
                             variant={activeTab === 'suppliers' ? 'secondary' : 'ghost'}
@@ -281,6 +294,12 @@ export const Layout = () => {
               <span className="hidden sm:inline">Returns</span>
             </TabsTrigger>
             {isAdmin && (
+              <TabsTrigger value="sales-history" className="flex items-center gap-2">
+                <ReceiptText className="h-4 w-4" />
+                <span className="hidden sm:inline">Sales</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
               <>
                 <TabsTrigger value="suppliers" className="flex items-center gap-2">
                   <Truck className="h-4 w-4" />
@@ -357,6 +376,14 @@ export const Layout = () => {
               <ReturnsRefunds />
             </Suspense>
           </TabsContent>
+          
+          {isAdmin && (
+            <TabsContent value="sales-history" className="mt-6">
+              <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+                <SalesHistory />
+              </Suspense>
+            </TabsContent>
+          )}
           
           <TabsContent value="audit" className="mt-6">
             <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
