@@ -346,3 +346,91 @@ describe('audit trail', () => {
     expect(logs[1].record_id).toBe('sale-1');
   });
 });
+
+describe('1.4 invariants: credit boundary, terminal states, net restock, audit', () => {
+  it('allows a credit sale exactly at the limit, rejects one cent over', async () => {
+    const product = (await db.localProducts.toArray())[0];
+    const customer = (await db.localCustomers.toArray()).find(c => c.id !== 'walk-in')!;
+    // Deterministic values: limit 500, balance 200 → headroom exactly 300.
+    await db.localCustomers.update(customer.id, { credit_limit: 50000, outstanding_balance: 20000 });
+    const before = product.stock_quantity;
+
+    // Exactly at the headroom (300) must SUCCEED — the boundary is inclusive.
+    const saleId = await processLocalSale(
+      STORE_ID, customer.id, 'credit',
+      [{ product_id: product.id, product_name: product.name, quantity: 1, unit_price: 30000, total_line: 30000 }],
+      30000
+    );
+    expect(saleId).toBeTruthy();
+    expect((await db.localCustomers.get(customer.id))!.outstanding_balance).toBe(50000);
+    expect((await db.localProducts.get(product.id))!.stock_quantity).toBe(before - 1);
+
+    // Now sitting exactly at the limit: one more cent of credit must fail.
+    await expect(
+      processLocalSale(
+        STORE_ID, customer.id, 'credit',
+        [{ product_id: product.id, product_name: product.name, quantity: 1, unit_price: 1, total_line: 1 }],
+        1
+      )
+    ).rejects.toThrow(/credit limit/);
+  });
+
+  it('rejected returns are terminal: they cannot be completed afterwards', async () => {
+    const product = (await db.localProducts.toArray())[0];
+    const saleId = await processLocalSale(
+      STORE_ID, null, 'cash',
+      [{ product_id: product.id, product_name: product.name, quantity: 2, unit_price: product.selling_price, total_line: 0 }],
+      0
+    );
+    const ret = await createLocalReturn({
+      sale_id: saleId, product_id: product.id, quantity: 1,
+      reason: 'x', return_type: 'refund', notes: ''
+    });
+    await updateLocalReturnStatus(ret.id, 'rejected');
+
+    const stockAfterReject = (await db.localProducts.get(product.id))!.stock_quantity;
+    await expect(updateLocalReturnStatus(ret.id, 'completed')).rejects.toThrow(/rejected and cannot be completed/);
+    expect((await db.localReturns.get(ret.id))!.status).toBe('rejected');
+    // The failed completion must not have restocked anything.
+    expect((await db.localProducts.get(product.id))!.stock_quantity).toBe(stockAfterReject);
+  });
+
+  it('void restocks only the net when a completed return already put units back', async () => {
+    const product = (await db.localProducts.toArray())[0];
+    const stockBefore = product.stock_quantity;
+
+    const saleId = await processLocalSale(
+      STORE_ID, null, 'cash',
+      [{ product_id: product.id, product_name: product.name, quantity: 5, unit_price: product.selling_price, total_line: 0 }],
+      0
+    );
+    const afterSale = (await db.localProducts.get(product.id))!.stock_quantity; // stockBefore - 5
+
+    // 2 units come back via a completed return.
+    const ret = await createLocalReturn({
+      sale_id: saleId, product_id: product.id, quantity: 2,
+      reason: 'x', return_type: 'refund', notes: ''
+    });
+    await updateLocalReturnStatus(ret.id, 'completed');
+    expect((await db.localProducts.get(product.id))!.stock_quantity).toBe(afterSale + 2);
+
+    // Void must restock only the remaining 3 — restocking all 5 would
+    // conjure 2 units from nothing.
+    await voidLocalSale(saleId, 'cashier error', null);
+    expect((await db.localProducts.get(product.id))!.stock_quantity).toBe(stockBefore);
+  });
+
+  it('records a create_sale audit entry for every sale, with the acting user', async () => {
+    const product = (await db.localProducts.toArray())[0];
+    const saleId = await processLocalSale(
+      STORE_ID, null, 'cash',
+      [{ product_id: product.id, product_name: product.name, quantity: 2, unit_price: 100, total_line: 200 }],
+      200, undefined, 'user-123'
+    );
+    const entry = (await getAudit()).find(l => l.action === 'create_sale' && l.record_id === saleId);
+    expect(entry).toBeDefined();
+    expect(entry!.user_id).toBe('user-123');
+    expect(entry!.table_name).toBe('sales');
+    expect(entry!.new_values).toMatchObject({ total: 200, method: 'cash', items: 1 });
+  });
+});

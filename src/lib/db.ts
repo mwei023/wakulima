@@ -139,9 +139,10 @@ export async function processLocalSale(
   paymentMethod: 'cash' | 'mpesa' | 'credit',
   items: { product_id: string; product_name: string; quantity: number; unit_price: number; total_line: number }[],
   totalAmount: number,
-  mpesaReference?: string
+  mpesaReference?: string,
+  userId?: string | null
 ): Promise<string> {
-  return db.transaction('rw', [db.localProducts, db.localCustomers, db.localSales, db.localMeta], async () => {
+  return db.transaction('rw', [db.localProducts, db.localCustomers, db.localSales, db.localMeta, db.localAudit], async () => {
     if (paymentMethod === 'credit') {
       if (!customerId || customerId === 'walk-in') throw new Error('Credit sales require a registered customer');
       const customer = await db.localCustomers.get(customerId);
@@ -184,6 +185,7 @@ export async function processLocalSale(
       items: items.map((item, i) => ({ ...item, id: crypto.randomUUID(), sale_id: saleId, item_seq: i + 1 }))
     };
     await db.localSales.add(sale);
+    await addAudit('create_sale', 'sales', saleId, { total: totalAmount, method: paymentMethod, items: items.length }, userId);
     return saleId;
   });
 }
@@ -291,18 +293,36 @@ export async function voidLocalSale(
   reason: string,
   userId?: string | null
 ): Promise<void> {
-  await db.transaction('rw', [db.localSales, db.localProducts, db.localCustomers, db.localAudit], async () => {
+  await db.transaction('rw', [db.localSales, db.localProducts, db.localCustomers, db.localAudit, db.localReturns], async () => {
     const sale = await db.localSales.get(saleId);
     if (!sale) throw new Error('Sale not found');
     if (sale.status === 'voided') throw new Error('Sale has already been voided');
 
-    // Restock: the goods come back.
+    // Restock: the goods come back — but only the net. Completed returns
+    // already put some units back on the shelf, so restocking the full sale
+    // quantity would conjure stock from nothing. Net = sale qty − completed
+    // return qty (clamped at 0).
+    const completedReturns = await db.localReturns
+      .where('sale_id')
+      .equals(saleId)
+      .toArray();
+    const returnedQty = new Map<string, number>();
+    for (const r of completedReturns) {
+      if (r.status !== 'completed') continue;
+      returnedQty.set(
+        r.product_id,
+        (returnedQty.get(r.product_id) ?? 0) + r.quantity
+      );
+    }
     for (const item of sale.items) {
       const product = await db.localProducts.get(item.product_id);
       if (!product) throw new Error(`Product ${item.product_name} no longer exists; cannot void`);
-      await db.localProducts.update(item.product_id, {
-        stock_quantity: product.stock_quantity + item.quantity
-      });
+      const net = item.quantity - Math.min(returnedQty.get(item.product_id) ?? 0, item.quantity);
+      if (net > 0) {
+        await db.localProducts.update(item.product_id, {
+          stock_quantity: product.stock_quantity + net
+        });
+      }
     }
 
     // Credit reversal: only credit sales carry a balance in the system.
@@ -328,6 +348,12 @@ export async function updateLocalReturnStatus(id: string, status: string): Promi
       const ret = await db.localReturns.get(id);
       if (!ret) throw new Error('Return not found');
       if (ret.status === 'completed') throw new Error('Return has already been completed');
+      if (ret.status === 'rejected') {
+        // Rejected is terminal: nothing was restocked or refunded at rejection
+        // time (units were freed back), so completing one now would
+        // double-apply the reversal.
+        throw new Error('Return was rejected and cannot be completed');
+      }
 
       await db.localReturns.update(id, {
         status,

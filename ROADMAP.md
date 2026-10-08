@@ -98,16 +98,19 @@ Even "local-only" apps run in two browser tabs.
       placeholder — feed and vet medicines are VAT-exempt; revisit if the
       shop sells VATable lines.
 
-### 1.4 Test coverage to match the money
-- [ ] Unit: credit-limit boundary (exactly at limit), return-of-return idempotency,
-      restock-once invariants, audit entries for every mutation.
-- [ ] e2e: offline sale → reload → sale still there; backup → wipe DB → restore
-      → totals match.
-- [ ] Property-based test for return quantity math (fast-check), it's the
-      fiddliest logic in the codebase.
+### 1.4 Test coverage to match the money ✅ (done 2026-10-08)
+- [x] Unit: credit-limit boundary (exactly at limit), return-of-return idempotency
+      (rejected returns are terminal), restock-once invariants (void restocks
+      only the net after completed returns), audit entries for every mutation.
+- [x] e2e: offline sale → reload → sale still there; backup → wipe DB → restore
+      → totals match (e2e/durability.spec.ts).
+- [x] Property-based test for return quantity math (fast-check), it's the
+      fiddliest logic in the codebase (src/lib/returnMath.property.test.ts).
 
 **Exit gate:** no float money anywhere; sales lifecycle complete; liveQuery
-multi-tab consistency demonstrated by an automated test; coverage on db.ts ≥ 90%.
+multi-tab consistency demonstrated by an automated test; coverage on db.ts ≥ 90%
+(measured 2026-10-08 via @vitest/coverage-v8: db.ts 90.6% statements; 49 unit
++ property tests, 6 e2e tests green).
 
 ---
 
