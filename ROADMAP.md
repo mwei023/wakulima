@@ -114,12 +114,21 @@ multi-tab consistency demonstrated by an automated test; coverage on db.ts ≥ 9
 
 ---
 
-## Phase 2 — The architectural fork (decision, then 4–6 weeks)
+## Phase 2 — Sync spine (decision made, then 4–6 weeks)
 
-**This is the decision that defines the product.** Pick one explicitly and
-write it down. Everything in Phases 3–4 assumes you chose.
+**Decision recorded 2026-10-09 in docs/ADR-001-architecture-fork.md** — pick
+one explicitly and write it down. Everything in Phases 3–4 assumes you chose.
 
-### Option A — "Fleet of islands" (stay local-first, add a sync spine)
+### ✅ The choice: Option A — "Fleet of islands" (stay local-first, add a sync spine)
+
+Owner answered "2+ devices someday". Keep Dexie as the source of truth on each
+device; add background replication. Backup topology is staged: LAN receiver
+first (works with zero internet), shop's own VPS second for off-site safety.
+Auth grows up right after the backup spine (PIN-per-cashier → data-layer
+enforcement → chained audit). Full rationale, work order and exit gate: see
+ADR-001.
+
+### Option A — design details
 Keep Dexie as the source of truth on each device; add background replication.
 
 - **What it buys:** the offline story becomes real (POS never blocks on the
@@ -144,9 +153,10 @@ Keep Dexie as the source of truth on each device; add background replication.
 - **Effort:** 4–6 weeks, mostly in the conflict matrix and testing with
   flaky-network simulations (`offlineTestUtils.ts` already exists — resurrect it).
 
-### Option B — "Honest single-device" (double down on local-only)
-Drop the multi-device ambition. Make one device the till, treat it like an
-appliance.
+### Option B — "Honest single-device" (NOT chosen — kept for the record)
+Was the fallback if the till stayed one device forever. The staged backup
+plan (LAN receiver, auto-push, restore drill) is still built as-is because a
+fleet needs healthy per-device mirrors anyway.
 
 - **What it buys:** weeks of engineering saved; zero sync bugs ever.
 - **What it costs:** reports/backup live on one machine; a broken phone = a
