@@ -119,6 +119,15 @@ multi-tab consistency demonstrated by an automated test; coverage on db.ts ≥ 9
 **Decision recorded 2026-10-09 in docs/ADR-001-architecture-fork.md** — pick
 one explicitly and write it down. Everything in Phases 3–4 assumes you chose.
 
+### 2.2 Sync protocol design → in review (2.2a done 2026-10-18)
+- [x] **ADR-002 written** (docs/ADR-002-sync-protocol.md): record envelope
+      (device_id/device_seq/tombstones), additive-delta stock + derived credit
+      balances (incl. new payments table, v7), LWW for profile fields,
+      push/pull cursors, conflict matrix, staged Postgres topology
+      (in-shop LAN first → VPS later). Owner review pending before 2.2b code.
+- [ ] 2.2b: server + compose + Postgres schema (per ADR-002 §7), Dexie v7
+      client envelope migration, two-till fixture drill, real second device.
+
 ### 2.1 LAN backup receiver ✅ (built 2026-10-09 — stage 1 of the staged backup)
 - [x] Zero-dependency receiver service (`server/backup-server.mjs`, README with
       the shop setup runbook) — timestamped snapshots + `latest.json`, pruned,
