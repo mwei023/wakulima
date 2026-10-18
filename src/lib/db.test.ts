@@ -2,6 +2,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { db, seedLocal, processLocalSale, createLocalReturn, updateLocalReturnStatus, getLocalReturns, addAudit, getAudit, voidLocalSale } from '@/lib/db';
 import { STORE_ID } from '@/lib/backend';
 
+// created_at has millisecond precision; two inserts in the same ms make
+// orderBy('created_at') order ambiguous. Ordering-sensitive tests sleep a
+// beat between writes so the expected sequence is deterministic everywhere.
+const distinctTime = () => new Promise(r => setTimeout(r, 3));
+
 async function clearAll() {
   await db.transaction('rw', [db.localProducts, db.localCustomers, db.localSales, db.localReturns, db.localAudit], async () => {
     await db.localProducts.clear();
@@ -339,6 +344,7 @@ describe('voidLocalSale', () => {
 describe('audit trail', () => {
   it('records entries in order', async () => {
     await addAudit('CREATE_SALE', 'sales', 'sale-1', { total: 100 });
+    await distinctTime();
     await addAudit('UPDATE_PRICE', 'products', 'prod-1', { selling_price: 200 }, null, { selling_price: 150 });
     const logs = await getAudit();
     expect(logs).toHaveLength(2);
