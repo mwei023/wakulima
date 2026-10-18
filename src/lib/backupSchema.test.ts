@@ -28,13 +28,15 @@ describe('backup payload schema', () => {
     expect(backupPayloadSchema.safeParse(validPayload).success).toBe(true);
   });
 
-  it('accepts both supported versions (1 legacy KES floats, 2 cents)', () => {
+  it('accepts all supported versions (1 legacy KES floats, 2 cents, 3 cents + receipt counters)', () => {
     expect(backupPayloadSchema.safeParse({ ...validPayload, schema_version: 1 }).success).toBe(true);
     expect(backupPayloadSchema.safeParse({ ...validPayload, schema_version: 2 }).success).toBe(true);
+    expect(backupPayloadSchema.safeParse({ ...validPayload, schema_version: 3 }).success).toBe(true);
+    expect(backupPayloadSchema.safeParse({ ...validPayload, schema_version: 3, meta: [{ key: 'receipt_seq', value: 4 }] }).success).toBe(true);
   });
 
   it('rejects unknown schema versions', () => {
-    const bad = { ...validPayload, schema_version: 3 };
+    const bad = { ...validPayload, schema_version: 999 };
     expect(backupPayloadSchema.safeParse(bad).success).toBe(false);
     const zero = { ...validPayload, schema_version: 0 };
     expect(backupPayloadSchema.safeParse(zero).success).toBe(false);

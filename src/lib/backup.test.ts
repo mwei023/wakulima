@@ -10,7 +10,7 @@ import {
   createBackupPayload,
   MAX_BACKUPS,
 } from './backup';
-import { db, seedLocal, processLocalSale } from './db';
+import { db, seedLocal, processLocalSale, nextSeq, RECEIPT_SEQ_KEY } from './db';
 import { STORE_ID } from './backend';
 
 beforeEach(async () => {
@@ -43,7 +43,7 @@ describe('rolling backups', () => {
 
     const payload = await getBackup(latest!.id);
     expect(payload).not.toBeNull();
-    expect(payload!.schema_version).toBe(2);
+    expect(payload!.schema_version).toBe(3);
     expect(payload!.products.length).toBeGreaterThan(0);
     expect(payload!.customers.length).toBeGreaterThan(0);
   });
@@ -125,5 +125,58 @@ describe('rolling backups', () => {
     localStorage.setItem('wakulima-last-rolling-backup', stale);
     expect(await runRollingBackupIfDue()).toBe(true);
     expect((await listBackups()).length).toBe(2);
+  });
+
+  it('v3 payloads carry the receipt counter, so a restore never restarts numbering at 1', async () => {
+    const product = (await db.localProducts.toArray())[0];
+
+    // Two sales advance the receipt counter to 2.
+    for (let i = 0; i < 2; i++) {
+      await processLocalSale(
+        STORE_ID, null, 'cash',
+        [{ product_id: product.id, product_name: product.name, quantity: 1, unit_price: 100, total_line: 100 }],
+        100
+      );
+    }
+    const counterAtBackup = await nextSeq(RECEIPT_SEQ_KEY); // 3
+    expect(counterAtBackup).toBe(3);
+
+    const payload = await createBackupPayload();
+    expect(payload.schema_version).toBe(3);
+    expect(payload.meta).toBeDefined();
+    expect(payload.meta!.find(m => m.key === RECEIPT_SEQ_KEY)?.value).toBe(3);
+
+    // Wipe (including the counter) and restore.
+    await db.transaction('rw', [db.localProducts, db.localCustomers, db.localSales, db.localReturns, db.localAudit, db.localMeta], async () => {
+      await Promise.all([
+        db.localProducts.clear(),
+        db.localCustomers.clear(),
+        db.localSales.clear(),
+        db.localReturns.clear(),
+        db.localAudit.clear(),
+        db.localMeta.clear(),
+      ]);
+    });
+    await restoreFromPayload(payload);
+    expect(await db.localMeta.get(RECEIPT_SEQ_KEY)).toMatchObject({ key: RECEIPT_SEQ_KEY, value: 3 });
+
+    // The NEXT receipt is #4, not #1 — no duplicate printed numbers.
+    expect(await nextSeq(RECEIPT_SEQ_KEY)).toBe(4);
+  });
+
+  it('legacy v1/v2 restores keep the live counter (never reset backwards)', async () => {
+    const product = (await db.localProducts.toArray())[0];
+    await processLocalSale(
+      STORE_ID, null, 'cash',
+      [{ product_id: product.id, product_name: product.name, quantity: 1, unit_price: 100, total_line: 100 }],
+      100
+    );
+    const liveCounter = (await db.localMeta.get(RECEIPT_SEQ_KEY))!.value;
+
+    const payload = await createBackupPayload();
+    const v2 = { ...payload, schema_version: 2 as const, meta: undefined };
+    await restoreFromPayload(v2);
+    // v1/v2 payloads carry no counters; the live counter survives instead.
+    expect((await db.localMeta.get(RECEIPT_SEQ_KEY))!.value).toBe(liveCounter);
   });
 });

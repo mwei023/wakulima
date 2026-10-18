@@ -83,13 +83,21 @@ export const auditEntrySchema = z.object({
   created_at: isoDate,
 });
 
+export const metaEntrySchema = z.object({
+  key: z.string().min(1),
+  value: z.number(),
+});
+
 export const backupPayloadSchema = z.object({
   // v1: KES floats (legacy backups). v2: integer cents (current).
-  schema_version: z.union([z.literal(1), z.literal(2)]),
+  // v3: v2 + localMeta counters (receipt sequence) so a restore never
+  // restarts receipt numbering at 1 and duplicates a printed number.
+  schema_version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   created_at: isoDate,
   products: z.array(productSchema),
   customers: z.array(customerSchema),
   sales: z.array(saleSchema),
   returns: z.array(returnSchema),
   audit: z.array(auditEntrySchema),
+  meta: z.array(metaEntrySchema).optional(),
 });

@@ -119,6 +119,23 @@ multi-tab consistency demonstrated by an automated test; coverage on db.ts ≥ 9
 **Decision recorded 2026-10-09 in docs/ADR-001-architecture-fork.md** — pick
 one explicitly and write it down. Everything in Phases 3–4 assumes you chose.
 
+### 2.1 LAN backup receiver ✅ (built 2026-10-09 — stage 1 of the staged backup)
+- [x] Zero-dependency receiver service (`server/backup-server.mjs`, README with
+      the shop setup runbook) — timestamped snapshots + `latest.json`, pruned,
+      token-authed writes, works with zero internet. Runs as `npm run backup-server`.
+- [x] Till auto-push (`src/lib/lanBackup.ts` wired into bootstrap): full
+      snapshot POST, hourly throttle, failures never block selling and never
+      throttle the retry; a push also satisfies the 7-day off-device nag.
+- [x] Settings UI to configure receiver URL/token + "Push backup now" + status.
+- [x] Backup schema v3: `localMeta` counters ride along, so a restore continues
+      receipt numbering instead of restarting at #1 (legacy v1/v2 restores
+      keep the live counter).
+- [x] The device-lost rehearsal as a test (`src/lib/receiver.integration.test.ts`):
+      real server, push → wipe → `/latest` → restore → stock, balances, sales
+      and the receipt counter all verified; auth/shape rejections covered.
+- [ ] Operational: install the receiver on the shop's always-on computer and
+      rehearse the quarterly restore drill (README) — needs the real machine.
+
 ### ✅ The choice: Option A — "Fleet of islands" (stay local-first, add a sync spine)
 
 Owner answered "2+ devices someday". Keep Dexie as the source of truth on each

@@ -23,6 +23,12 @@ export function markManualExport(): void {
   }
 }
 
+/** An automated push to the LAN receiver counts as a real off-device copy —
+ *  the 7-day nag must not fight the automation. */
+export function markLanPush(): void {
+  markManualExport();
+}
+
 export function daysSinceLastOffDeviceBackup(): number | null {
   const last = getLastOffDeviceBackup();
   if (!last) return null;

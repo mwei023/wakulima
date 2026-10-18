@@ -21,13 +21,14 @@ interface BackupRecord {
 }
 
 export interface BackupPayload {
-  schema_version: 1 | 2;
+  schema_version: 1 | 2 | 3;
   created_at: string;
   products: Product[];
   customers: Customer[];
   sales: Sale[];
   returns: LocalReturn[];
   audit: LocalAuditEntry[];
+  meta?: { key: string; value: number }[];
 }
 
 class BackupDatabase extends Dexie {
@@ -52,13 +53,14 @@ export async function createBackupPayload(): Promise<BackupPayload> {
     db.localAudit.toArray(),
   ]);
   return {
-    schema_version: 2,
+    schema_version: 3,
     created_at: new Date().toISOString(),
     products,
     customers,
     sales,
     returns,
     audit,
+    meta: await db.localMeta.toArray(),
   };
 }
 
@@ -98,11 +100,11 @@ export async function latestBackupMeta(): Promise<{ id: number; created_at: stri
 
 const toCents = (v: unknown): number => Math.round((typeof v === 'number' && Number.isFinite(v) ? v : 0) * 100);
 
-/** Upgrade a legacy v1 (KES floats) payload to v2 (integer cents) in memory. */
-function convertV1ToV2(payload: BackupPayload): BackupPayload {
+/** Upgrade a legacy v1 (KES floats) or v2 (no counters) payload to v3 in memory. */
+function convertLegacyToV3(payload: BackupPayload): BackupPayload {
   return {
     ...payload,
-    schema_version: 2,
+    schema_version: 3,
     products: payload.products.map(p => ({
       ...p,
       selling_price: toCents(p.selling_price),
@@ -116,8 +118,6 @@ function convertV1ToV2(payload: BackupPayload): BackupPayload {
     sales: payload.sales.map(s => ({
       ...s,
       total_amount: toCents(s.total_amount),
-      mpesa_reference: s.mpesa_reference,
-      receipt_number: s.receipt_number,
       items: s.items.map(i => ({
         ...i,
         unit_price: toCents(i.unit_price),
@@ -128,26 +128,28 @@ function convertV1ToV2(payload: BackupPayload): BackupPayload {
       ...r,
       refund_amount: toCents(r.refund_amount),
     })),
+    // v1/v2 payloads carry no receipt counters; leave localMeta untouched on
+    // restore rather than resetting a counter that may have advanced.
+    meta: payload.meta ?? undefined,
   };
 }
 
 /**
  * Restore wipes the main tables and re-inserts the snapshot inside one
  * transaction: either the restore fully happens or nothing changes.
+ *
+ * v1/v2 payloads are upgraded to v3 on the way in so the DB is always cents
+ * + counters after a restore. A v3 restore also replaces localMeta (the
+ * receipt counter) so numbering continues rather than restarting at #1.
  */
 export async function restoreFromPayload(payload: BackupPayload): Promise<void> {
-  if (payload.schema_version !== 1 && payload.schema_version !== 2) {
+  if (payload.schema_version !== 1 && payload.schema_version !== 2 && payload.schema_version !== 3) {
     throw new Error(`Unsupported backup schema version: ${payload.schema_version}`);
   }
-  // v1 backups stored KES floats; v2 stores integer cents. Convert v1 up on
-  // the way in so the DB is always cents after a restore.
-  const normalized =
-    payload.schema_version === 1
-      ? convertV1ToV2(payload)
-      : payload;
+  const normalized = payload.schema_version === 3 ? payload : convertLegacyToV3(payload);
   await db.transaction(
     'rw',
-    [db.localProducts, db.localCustomers, db.localSales, db.localReturns, db.localAudit],
+    [db.localProducts, db.localCustomers, db.localSales, db.localReturns, db.localAudit, db.localMeta],
     async () => {
       await Promise.all([
         db.localProducts.clear(),
@@ -155,12 +157,18 @@ export async function restoreFromPayload(payload: BackupPayload): Promise<void> 
         db.localSales.clear(),
         db.localReturns.clear(),
         db.localAudit.clear(),
+        // Only a v3 payload owns the counters; legacy restores keep the
+        // live counter (never reset a printed-receipt sequence backwards).
+        ...(normalized.meta ? [db.localMeta.clear()] : []),
       ]);
       await db.localProducts.bulkAdd(normalized.products);
       await db.localCustomers.bulkAdd(normalized.customers);
       await db.localSales.bulkAdd(normalized.sales);
       await db.localReturns.bulkAdd(normalized.returns);
       await db.localAudit.bulkAdd(normalized.audit);
+      if (normalized.meta) {
+        await db.localMeta.bulkPut(normalized.meta);
+      }
     }
   );
 }

@@ -1,5 +1,6 @@
 import { ensurePersistentStorage } from './storage';
 import { runRollingBackupIfDue, latestBackupMeta } from './backup';
+import { runLanPushIfDue } from './lanBackup';
 
 let started = false;
 
@@ -14,6 +15,13 @@ export function startDataSafety(): void {
 
   const maybeBackup = () => {
     runRollingBackupIfDue();
+    // LAN receiver push (ADR-001): throttled, never blocks, failure is a
+    // status line in Settings — the source of truth stays local either way.
+    void runLanPushIfDue().then(result => {
+      if (result.status === 'failed') {
+        console.warn('LAN backup push failed (will retry next cycle):', result.error);
+      }
+    });
   };
 
   void ensurePersistentStorage().then(status => {

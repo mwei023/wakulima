@@ -18,14 +18,31 @@ import { toast } from '@/hooks/use-toast';
 import { formatCurrency, activeSales, centsToKes } from '@/lib/utils';
 import { getStorageStatus, formatBytes, StorageStatus as StorageStatusInfo } from '@/lib/storage';
 import { daysSinceLastOffDeviceBackup } from '@/lib/backupReminder';
+import {
+  getLanBackupConfig,
+  setLanBackupConfig,
+  getLastLanPush,
+  pushToLanReceiver,
+} from '@/lib/lanBackup';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import type { BadgeProps } from '@/components/ui/badge';
 
 export const Settings = () => {
   const { isOnline, sales } = useStore();
   const [storage, setStorage] = useState<StorageStatusInfo | null>(null);
+  const [lanUrl, setLanUrl] = useState('');
+  const [lanToken, setLanToken] = useState('');
+  const [lanStatus, setLanStatus] = useState<'idle' | 'pushing' | 'ok' | 'failed'>('idle');
+  const [lanMessage, setLanMessage] = useState<string | null>(null);
+  const [lanLast, setLanLast] = useState<string | null>(null);
 
   useEffect(() => {
     void getStorageStatus().then(setStorage);
+    const cfg = getLanBackupConfig();
+    setLanUrl(cfg.url);
+    setLanToken(cfg.token);
+    setLanLast(getLastLanPush()?.at ?? null);
   }, []);
 
   const handleExportData = () => {
@@ -136,6 +153,86 @@ export const Settings = () => {
               <Download className="h-4 w-4 mr-2" />
               Export Sales CSV
             </Button>
+          </div>
+
+          {/* Off-device LAN backup receiver (ADR-001 Phase 2.1) */}
+          <Separator />
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium">Off-device backup (shop network)</span>
+              {lanLast ? (
+                <Badge variant={lanStatus === 'failed' ? 'destructive' : 'success'}>
+                  last push {new Date(lanLast).toLocaleString()}
+                </Badge>
+              ) : (
+                <Badge variant="secondary">not yet pushed</Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mb-2">
+              Pushes a full snapshot to the backup computer on this shop's router.
+              Works with zero internet. Run the receiver there: <code>node server/backup-server.mjs</code>
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 mb-2">
+              <div>
+                <Label htmlFor="lan-url" className="text-xs text-muted-foreground">Receiver URL</Label>
+                <Input
+                  id="lan-url"
+                  placeholder="http://192.168.1.10:8787"
+                  value={lanUrl}
+                  onChange={e => setLanUrl(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="lan-token" className="text-xs text-muted-foreground">Backup token</Label>
+                <Input
+                  id="lan-token"
+                  type="password"
+                  placeholder="wakulima-lan"
+                  value={lanToken}
+                  onChange={e => setLanToken(e.target.value)}
+                />
+              </div>
+            </div>
+            {lanMessage && (
+              <p className={`text-xs mb-2 ${lanStatus === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>{lanMessage}</p>
+            )}
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setLanBackupConfig(lanUrl, lanToken);
+                  toast({ title: 'Saved', description: 'Backup receiver configuration stored on this device' });
+                }}
+              >
+                Save
+              </Button>
+              <Button
+                size="sm"
+                disabled={lanStatus === 'pushing' || lanUrl.trim().length === 0}
+                onClick={async () => {
+                  setLanBackupConfig(lanUrl, lanToken);
+                  setLanStatus('pushing');
+                  setLanMessage('Pushing snapshot…');
+                  const result = await pushToLanReceiver();
+                  if (result.status === 'pushed') {
+                    setLanStatus('ok');
+                    setLanMessage(null);
+                    setLanLast(result.at);
+                    toast({ title: 'Backup pushed', description: 'A full copy now lives on the shop backup computer' });
+                  } else if (result.status === 'failed') {
+                    setLanStatus('failed');
+                    setLanMessage(result.error);
+                    toast({ title: 'Push failed', description: result.error, variant: 'destructive' });
+                  } else {
+                    setLanStatus('failed');
+                    setLanMessage('No receiver URL configured');
+                  }
+                }}
+              >
+                {lanStatus === 'pushing' ? 'Pushing…' : 'Push backup now'}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
