@@ -136,6 +136,8 @@ create table returns (
 create index returns_sale_idx on returns (sale_id);
 
 -- Customer repays part of the credit tab (the capability §3.3 adds).
+-- method 'opening' = a v7 legacy-balance conversion event (ADR-002 §9.2):
+-- debt that predates any recorded sale, applied as balance -= amount.
 create table payments (
   id         uuid primary key,
   device_id  uuid not null references devices(id),
@@ -144,8 +146,10 @@ create table payments (
   updated_at timestamptz not null,
   deleted_at timestamptz,
   customer_id uuid not null,
-  amount     bigint not null check (amount > 0),  -- applied as: balance -= amount
-  method     text not null default 'cash' check (method in ('cash','mpesa')),
+  amount     bigint not null check (amount <> 0),  -- applied as: balance -= amount; NEGATIVE =
+                                                    -- 'opening'-class debt without a backing sale
+                                                    -- (v7 legacy conversion, ADR-002 §9.2)
+  method     text not null default 'cash' check (method in ('cash','mpesa','opening')),
   note       text not null default '',
   unique (device_id, device_seq)
 );

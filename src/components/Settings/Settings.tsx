@@ -24,6 +24,14 @@ import {
   getLastLanPush,
   pushToLanReceiver,
 } from '@/lib/lanBackup';
+import {
+  getSyncConfig,
+  configureSync,
+  clearSyncConfig,
+  getSyncStatus,
+  subscribeSyncStatus,
+  runSyncNow,
+} from '@/lib/sync-client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { BadgeProps } from '@/components/ui/badge';
@@ -36,6 +44,19 @@ export const Settings = () => {
   const [lanStatus, setLanStatus] = useState<'idle' | 'pushing' | 'ok' | 'failed'>('idle');
   const [lanMessage, setLanMessage] = useState<string | null>(null);
   const [lanLast, setLanLast] = useState<string | null>(null);
+  const [syncUrl, setSyncUrl] = useState('');
+  const [syncToken, setSyncToken] = useState('');
+  const [syncStatus, setSyncStatus] = useState(getSyncStatus());
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const cfg = getSyncConfig();
+    if (cfg) {
+      setSyncUrl(cfg.url);
+      setSyncToken(cfg.token);
+    }
+    return subscribeSyncStatus(() => setSyncStatus(getSyncStatus()));
+  }, []);
 
   useEffect(() => {
     void getStorageStatus().then(setStorage);
@@ -153,6 +174,105 @@ export const Settings = () => {
               <Download className="h-4 w-4 mr-2" />
               Export Sales CSV
             </Button>
+          </div>
+
+          {/* Fleet sync (ADR-002 §4): the 30s convergence loop with the shop
+              sync server. Unconfigured stores do nothing — the till keeps
+              selling; sync is a background convenience, never a gate. */}
+          <Separator />
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium">Fleet sync (multi-till)</span>
+              <Badge variant={
+                syncStatus.state === 'ok' ? 'success'
+                  : syncStatus.state === 'error' ? 'destructive'
+                  : syncStatus.state === 'unconfigured' ? 'secondary' : 'default'
+              }>
+                {syncStatus.state === 'ok'
+                  ? `synced${syncStatus.lastSyncAt ? ` ${new Date(syncStatus.lastSyncAt).toLocaleTimeString()}` : ''}`
+                  : syncStatus.state === 'error'
+                    ? 'error'
+                    : syncStatus.state === 'syncing' ? 'syncing…'
+                    : syncStatus.state === 'unconfigured' ? 'not configured' : 'idle'}
+              </Badge>
+            </div>
+            {syncStatus.state === 'error' && syncStatus.lastError && (
+              <p className="text-xs text-destructive mb-2">{syncStatus.lastError}</p>
+            )}
+            <p className="text-sm text-muted-foreground mb-2">
+              Converges stock, credit ledgers, and history across every till on
+              this shop's LAN. Selling never waits on it. Configure the URL
+              printed when the shop admin mints this device's token
+              (<code>POST /devices</code> against the sync server).
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 mb-2">
+              <div>
+                <Label htmlFor="sync-url" className="text-xs text-muted-foreground">Sync server URL</Label>
+                <Input
+                  id="sync-url"
+                  placeholder="http://192.168.1.10:8788"
+                  value={syncUrl}
+                  onChange={e => setSyncUrl(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="sync-token" className="text-xs text-muted-foreground">Device token (minted once)</Label>
+                <Input
+                  id="sync-token"
+                  type="password"
+                  placeholder="wk_…"
+                  value={syncToken}
+                  onChange={e => setSyncToken(e.target.value)}
+                />
+              </div>
+            </div>
+            {syncMsg && <p className="text-xs mb-2 text-muted-foreground">{syncMsg}</p>}
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (!syncUrl.trim() || !syncToken.trim()) {
+                    setSyncMsg('Both URL and device token are required');
+                    return;
+                  }
+                  configureSync(syncUrl, syncToken);
+                  setSyncMsg('Sync configuration saved — first cycle will run shortly');
+                  toast({ title: 'Sync configured', description: 'This till will converge with the shop fleet from the next cycle' });
+                }}
+              >
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={syncStatus.state === 'syncing' || !syncUrl.trim() || !syncToken.trim()}
+                onClick={async () => {
+                  configureSync(syncUrl, syncToken);
+                  setSyncStatus(s => ({ ...s, state: 'syncing' }));
+                  try {
+                    const { pulled, pushed } = await runSyncNow();
+                    setSyncMsg(`Pulled ${pulled}, pushed ${pushed} records`);
+                  } catch (err) {
+                    setSyncMsg(err instanceof Error ? err.message : String(err));
+                  }
+                }}
+              >
+                {syncStatus.state === 'syncing' ? 'Syncing…' : 'Sync now'}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  clearSyncConfig();
+                  setSyncUrl('');
+                  setSyncToken('');
+                  setSyncMsg('Sync disabled on this device');
+                }}
+              >
+                Disable
+              </Button>
+            </div>
           </div>
 
           {/* Off-device LAN backup receiver (ADR-001 Phase 2.1) */}

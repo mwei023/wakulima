@@ -12,6 +12,13 @@ export interface Product {
   product_id?: string; // Optional legacy reference (unused locally)
   created_at: string;
   updated_at: string;
+  /** Events-anchored opening (ADR-002 §3.1): stock = opening − Σsales + Σreturns ± Σadjustments. */
+  opening_stock?: number;
+  // ---- sync envelope (ADR-002 §2; stamped by the v7 migration and every write) ----
+  device_id?: string;
+  device_seq?: number;
+  /** Tombstone: set kills the row for sync and UI; rows are never purged locally. */
+  deleted_at?: string | null;
 }
 
 export interface Customer {
@@ -19,8 +26,48 @@ export interface Customer {
   name: string;
   phone: string;
   credit_limit: number;
+  /** Derived cache (ADR-002 §3.3): UI may read; writes only through events. */
   outstanding_balance: number;
   created_at: string;
+  /** Missing on legacy rows; the v7 migration sets it = created_at. */
+  updated_at?: string;
+  // ---- sync envelope (ADR-002 §2) ----
+  device_id?: string;
+  device_seq?: number;
+  deleted_at?: string | null;
+}
+
+/** "Juma paid 500 of his tab" — an event, never a hand-edit on the balance field. */
+export interface CreditPayment {
+  id: string;
+  customer_id: string;
+  /** Integer cents (KES × 100); always > 0 — applied as balance −= amount. */
+  amount: number;
+  /** 'opening' = v7 legacy-balance conversion event (debt predating any recorded sale). */
+  method: 'cash' | 'mpesa' | 'opening';
+  note?: string;
+  created_at: string;
+  updated_at?: string;
+  // ---- sync envelope ----
+  device_id?: string;
+  device_seq?: number;
+  deleted_at?: string | null;
+}
+
+/** Stocktake/damage/loss deltas (ADR-002 §3.1) — never an absolute count. */
+export interface StockAdjustment {
+  id: string;
+  product_id: string;
+  /** Signed: +100 found, −3 spoiled. Merges exactly across tills. */
+  delta: number;
+  reason: 'stocktake' | 'damage' | 'loss' | 'found' | 'other';
+  note?: string;
+  created_at: string;
+  updated_at?: string;
+  // ---- sync envelope ----
+  device_id?: string;
+  device_seq?: number;
+  deleted_at?: string | null;
 }
 
 export interface Sale {
@@ -43,6 +90,11 @@ export interface Sale {
   timestamp: string;
   store_id: string;
   items: SaleItem[];
+  // ---- sync envelope (ADR-002 §2; timestamp doubles as created_at) ----
+  updated_at?: string;
+  device_id?: string;
+  device_seq?: number;
+  deleted_at?: string | null;
 }
 
 export interface SaleItem {

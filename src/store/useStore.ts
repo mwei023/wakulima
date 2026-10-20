@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Product, Customer, Sale, CartItem, PendingOrder } from '@/types';
 import { mockPendingOrders } from '@/data/mockData';
-import { offlineManager, db, seedLocal, processLocalSale, voidLocalSale } from '@/lib/db';
+import { offlineManager, db, seedLocal, processLocalSale, voidLocalSale, createSyncedRecord, updateSyncedRecord, createStockAdjustment, createCreditPayment } from '@/lib/db';
 import { logSaleTransaction, createAuditLog } from '@/lib/auditLog';
 import { STORE_ID } from '@/lib/backend';
 
@@ -36,13 +36,13 @@ interface StoreState {
   voidSale: (saleId: string, reason: string) => Promise<string | null>;
 
   // Inventory actions
-  updateStock: (productId: string, newQuantity: number) => void;
+  updateStock: (productId: string, newQuantity: number) => Promise<void>;
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (product: Product) => Promise<void>;
 
   // Customer actions
   addCustomer: (customer: Omit<Customer, 'id' | 'created_at'>) => void;
-  updateCustomerBalance: (customerId: string, amount: number) => void;
+  updateCustomerBalance: (customerId: string, amount: number) => Promise<void>;
 
   // Orders actions
   confirmOrder: (orderId: string, saleItems: { productId: string; quantity: number }[]) => Promise<void>;
@@ -270,27 +270,22 @@ export const useStore = create<StoreState>()(
       },
 
       // Inventory actions
-      updateStock: (productId: string, newQuantity: number) => {
+      // Stock is DERIVED (ADR-002 §3.1): the UI's absolute count becomes a
+      // signed adjustment EVENT (delta = wanted − current). Deltas from
+      // different tills merge exactly; absolute writes would trample.
+      updateStock: async (productId: string, newQuantity: number) => {
         if (newQuantity < 0) return;
         const { products } = get();
         const old = products.find(p => p.id === productId);
-        const updatedProducts = products.map(product =>
-          product.id === productId
-            ? { ...product, stock_quantity: newQuantity, updated_at: new Date().toISOString() }
-            : product
-        );
-
-        set({ products: updatedProducts });
-        db.localProducts.update(productId, { stock_quantity: newQuantity }).catch(e => console.error(e));
-        if (old) {
-          createAuditLog({
-            action: 'UPDATE_INVENTORY',
-            table_name: 'products',
-            record_id: productId,
-            old_values: { stock_quantity: old.stock_quantity },
-            new_values: { stock_quantity: newQuantity }
-          });
-        }
+        if (!old || newQuantity === old.stock_quantity) return;
+        await createStockAdjustment({
+          product_id: productId,
+          delta: newQuantity - old.stock_quantity,
+          reason: 'stocktake',
+          note: 'inventory edit',
+        });
+        // Optimistic UI; liveSync reconciles from the DB row either way.
+        set({ products: products.map(p => (p.id === productId ? { ...p, stock_quantity: newQuantity } : p)) });
       },
 
       addProduct: async (product: Product) => {
@@ -302,8 +297,8 @@ export const useStore = create<StoreState>()(
           updated_at: new Date().toISOString()
         };
 
-        await db.localProducts.add(newProduct);
-        set({ products: [...get().products, newProduct] });
+        const stamped = await createSyncedRecord('products', newProduct);
+        set({ products: [...get().products, stamped] });
         await createAuditLog({ action: 'CREATE_PRODUCT', table_name: 'products', record_id: newProduct.id, new_values: newProduct });
       },
 
@@ -312,7 +307,12 @@ export const useStore = create<StoreState>()(
         const old = products.find(p => p.id === product.id);
         set({ products: products.map(p => (p.id === product.id ? product : p)) });
 
-        await db.localProducts.put(product);
+        // Profile fields ONLY (ADR-002 §3): stock_quantity is derived and
+        // moves by adjustment events, never by a profile edit.
+        const { stock_quantity: _stock, device_id: _dev, device_seq: _seq, deleted_at: _del, ...profilePatch } = product;
+        void _stock; void _dev; void _seq; void _del;
+        const stamped = await updateSyncedRecord('products', product.id, profilePatch);
+        if (stamped) set({ products: products.map(p => (p.id === product.id ? stamped : p)) });
         if (old && old.selling_price !== product.selling_price) {
           await createAuditLog({
             action: 'UPDATE_PRICE',
@@ -332,21 +332,24 @@ export const useStore = create<StoreState>()(
           created_at: new Date().toISOString()
         };
         set({ customers: [...get().customers, newCustomer] });
-        db.localCustomers.add(newCustomer).catch(e => console.error(e));
+        void createSyncedRecord('customers', newCustomer).catch(e => console.error(e));
       },
 
-      updateCustomerBalance: (customerId: string, amount: number) => {
-        const { customers } = get();
-        const updated = customers.map(customer =>
+      // Credit balances are derived from events (ADR-002 §3.3): the only
+      // sanctioned write path here is a payment event (amount < 0). Direct debt
+      // edits (amount > 0) are refused — record a credit sale instead.
+      updateCustomerBalance: async (customerId: string, amount: number) => {
+        if (amount > 0) {
+          console.warn('updateCustomerBalance: direct debt edits are disabled (ADR-002 §3.3); record a credit sale.');
+          return;
+        }
+        await createCreditPayment({ customer_id: customerId, amount: -amount });
+        const updated = get().customers.map(customer =>
           customer.id === customerId
-            ? { ...customer, outstanding_balance: Math.max(0, customer.outstanding_balance + amount) }
+            ? { ...customer, outstanding_balance: customer.outstanding_balance + amount }
             : customer
         );
         set({ customers: updated });
-        const changed = updated.find(x => x.id === customerId);
-        if (changed) {
-          db.localCustomers.update(customerId, { outstanding_balance: changed.outstanding_balance }).catch(e => console.error(e));
-        }
       },
 
       // Orders actions (WhatsApp-style orders confirmed into credit sales)

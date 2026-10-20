@@ -119,14 +119,27 @@ multi-tab consistency demonstrated by an automated test; coverage on db.ts ≥ 9
 **Decision recorded 2026-10-09 in docs/ADR-001-architecture-fork.md** — pick
 one explicitly and write it down. Everything in Phases 3–4 assumes you chose.
 
-### 2.2 Sync protocol design → in review (2.2a done 2026-10-18)
+### 2.2 Sync protocol design → server + client envelope done (2026-10-20)
 - [x] **ADR-002 written** (docs/ADR-002-sync-protocol.md): record envelope
       (device_id/device_seq/tombstones), additive-delta stock + derived credit
       balances (incl. new payments table, v7), LWW for profile fields,
       push/pull cursors, conflict matrix, staged Postgres topology
-      (in-shop LAN first → VPS later). Owner review pending before 2.2b code.
-- [ ] 2.2b: server + compose + Postgres schema (per ADR-002 §7), Dexie v7
-      client envelope migration, two-till fixture drill, real second device.
+      (in-shop LAN first → VPS later). Owner approved (§9).
+- [x] 2.2b server: schema per ADR-002 §7 (append-only `sync_log` spine),
+      sync API (device mint / push / pull), docker-compose + real-Postgres
+      integration tests, CI Postgres service (commit 3a039ea).
+- [x] 2.2b client (Dexie v7): envelope + credit-ledger/adjustment tables,
+      push **outbox** (frozen wire versions keyed by device_seq — no gaps
+      when a row is edited twice pre-push, ADR-002 §6), derived
+      stock/balance recompute, void = net-restock adjustment events +
+      refund-net money reversal (unclamped: post-payment void leaves the
+      shop owing), 'opening' balance events for seeded/legacy debt,
+      pull-apply with LWW/tombstone rules + watermark-inside-transaction,
+      409 ack-heal, sold-through audit flag, autoSync loop (§4 triggers).
+      80/80 unit + 6/6 e2e green; server sync suite 5/5 on real Postgres
+      ('opening' amounts: `amount <> 0` CHECK).
+- [ ] 2.2c: two-till fixture drill (automated), then real second device
+      on the shop LAN for a shadow week.
 
 ### 2.1 LAN backup receiver ✅ (built 2026-10-09 — stage 1 of the staged backup)
 - [x] Zero-dependency receiver service (`server/backup-server.mjs`, README with

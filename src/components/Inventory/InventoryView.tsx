@@ -104,7 +104,7 @@ export const InventoryView = () => {
         description: `Populating ${parsedProducts.length} products...`
       });
 
-      const { db } = await import('@/lib/db');
+      const { bulkImportProducts } = await import('@/lib/db');
       const existingBarcodes = new Set(useStore.getState().products.map(p => p.barcode).filter(Boolean));
       const fresh = parsedProducts.filter((p: { barcode: string }) => !p.barcode || !existingBarcodes.has(p.barcode));
       const now = new Date().toISOString();
@@ -122,7 +122,8 @@ export const InventoryView = () => {
         created_at: now,
         updated_at: now
       }));
-      if (toAdd.length > 0) await db.localProducts.bulkAdd(toAdd);
+      // Envelope-stamped per row (ADR-002 §2): imports become synced rows.
+      if (toAdd.length > 0) await bulkImportProducts(toAdd as Product[]);
 
       toast({
         title: "Population Complete",

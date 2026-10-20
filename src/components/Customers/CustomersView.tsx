@@ -52,11 +52,11 @@ const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     }
   };
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
     if (selectedCustomer && paymentAmount) {
       const amount = kesToCents(parseFloat(paymentAmount));
       if (amount > 0) {
-        updateCustomerBalance(selectedCustomer.id, -amount);
+        await updateCustomerBalance(selectedCustomer.id, -amount);
         toast({
           title: "Payment Recorded",
           description: `Payment of ${formatCurrency(amount)} recorded for ${selectedCustomer.name}`,

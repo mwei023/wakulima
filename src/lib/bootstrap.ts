@@ -1,6 +1,7 @@
 import { ensurePersistentStorage } from './storage';
 import { runRollingBackupIfDue, latestBackupMeta } from './backup';
 import { runLanPushIfDue } from './lanBackup';
+import { ensureSyncEnvelopes } from './db';
 
 let started = false;
 
@@ -33,8 +34,19 @@ export function startDataSafety(): void {
     }
   });
 
+  // Fleet sync (ADR-002 §4): steady-state triggers, one-shot bootstrapping.
+  // startAutoSync is safe before configuration (cycles no-op), so a device
+  // configured later in Settings starts converging without a reload.
+  const startFleetSync = () => {
+    void ensureSyncEnvelopes().catch(err => {
+      console.warn('sync envelope maintenance failed (will retry next boot):', err);
+    });
+    void import('./sync-client').then(m => m.startAutoSync());
+  };
+
   // Initial backup check once the DOM is live (Dexie is ready immediately).
   maybeBackup();
+  startFleetSync();
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') maybeBackup();
   });

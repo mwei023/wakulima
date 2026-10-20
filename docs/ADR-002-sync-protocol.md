@@ -4,6 +4,42 @@
 **Date:** 2026-10-18
 **Depends on:** ADR-001 (Option A fleet, staged backup topology)
 
+## Implementation notes (2.2b client build, 2026-10-20)
+
+- **§6 "outbox" made concrete:** every local write stamps its envelope AND
+  freezes the wire-shaped row into `localOutbox`, keyed by `device_seq`.
+  Continuity is outbox-ordered, not table-scanned — a row edited twice before
+  its first push sends BOTH versions (server upserts by id, newer seq wins),
+  so no gap and no silent renumber. Entries evict only ≤ the server ack.
+- **§4 ack-heal:** a 409 "gap: expected N" means the server has acked rows
+  the client lost track of (crash between commit and local ack save). The
+  client sets its ack to N−1 and replays — idempotent on the server side.
+- **Void semantics (event-canonical):** the void writes a `+net` **stock
+  adjustment event** (reason `void`) per product instead of a bare restock,
+  so derived stock converges fleet-wide; money reverses by
+  `total − completed refunds on this sale`, UNCLAMPED — a void after partial
+  payment leaves the balance negative (the shop owes the customer), which
+  is exactly what the corpus recompute yields.
+- **§9.2 approval wired in:** seeded/legacy customer debt (no backing sale
+  exists) becomes a NEGATIVE `opening` payment event; server CHECK widened
+  to `amount <> 0` + `method in ('cash','mpesa','opening')`. Hand-edits of
+  debt now throw — `updateCustomerBalance` only accepts payment (negative).
+- **Pull apply:** per-page transaction; LWW is `(updated_at, device_id)`;
+  edits arriving after a tombstone are suppressed AND audited
+  (`sync_tombstone_suppressed`); pulls advance the watermark INSIDE the
+  apply transaction (crash ⇒ re-pull, idempotent); sale_items fill the
+  embedded `Sale.items`; negative computed stock audits
+  `stock_sold_through` once per Till (§3.2 flag). Remote merges never
+  touch derived fields directly — `recomputeDerivedState()` runs per page.
+- **Restore keeps sync state:** the per-device counter, push ack, and pull
+  watermark survive `restoreFromPayload` untouched; re-stamped snapshot
+  versions continue the sequence; every restored customer whose balance the
+  events cannot explain receives its own `opening` event, so a recompute
+  reproduces the snapshot's numbers exactly.
+- **Coverage:** 12 new sync-envelope/derived tests (fake-indexeddb +
+  fetch-mock); existing 68 all pass; e2e 6/6; server suite 5/5 on real
+  Postgres after the CHECK widening.
+
 ## Implementation notes (2.2b server build, 2026-10-18)
 
 - **§4 pull cursor:** implemented as a **global append-only ingest log**

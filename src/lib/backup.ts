@@ -1,6 +1,6 @@
 import Dexie, { Table } from 'dexie';
 import { Product, Customer, Sale } from '@/types';
-import { db, LocalReturn, LocalAuditEntry } from './db';
+import { db, LocalReturn, LocalAuditEntry, ensureSyncEnvelopes, DEVICE_SEQ_KEY, SYNC_PUSH_ACK_KEY, SYNC_PULL_SEQ_KEY } from './db';
 
 /**
  * Rolling local backups.
@@ -141,15 +141,28 @@ function convertLegacyToV3(payload: BackupPayload): BackupPayload {
  * v1/v2 payloads are upgraded to v3 on the way in so the DB is always cents
  * + counters after a restore. A v3 restore also replaces localMeta (the
  * receipt counter) so numbering continues rather than restarting at #1.
+ *
+ * Sync state survives the swap untouched (ADR-002): the per-device seq
+ * counter, push ack, and pull watermark are captured live and re-put after
+ * the clear — restoring them from the payload could rewind the counter and
+ * collide with server-side (device_id, device_seq) uniqueness.
  */
 export async function restoreFromPayload(payload: BackupPayload): Promise<void> {
   if (payload.schema_version !== 1 && payload.schema_version !== 2 && payload.schema_version !== 3) {
     throw new Error(`Unsupported backup schema version: ${payload.schema_version}`);
   }
   const normalized = payload.schema_version === 3 ? payload : convertLegacyToV3(payload);
+  const liveSyncKeys = {
+    device_seq: (await db.localMeta.get(DEVICE_SEQ_KEY))?.value,
+    push_ack: (await db.localMeta.get(SYNC_PUSH_ACK_KEY))?.value,
+    pull_seq: (await db.localMeta.get(SYNC_PULL_SEQ_KEY))?.value,
+  };
+  // Outbox row versions reference rows the restore replaces; they are part
+  // of the local push continuity and stay. Re-stamped snapshots upsert over
+  // any stale versions (newer seq wins server-side).
   await db.transaction(
     'rw',
-    [db.localProducts, db.localCustomers, db.localSales, db.localReturns, db.localAudit, db.localMeta],
+    [db.localProducts, db.localCustomers, db.localSales, db.localReturns, db.localAudit, db.localMeta, db.localPayments, db.localAdjustments],
     async () => {
       await Promise.all([
         db.localProducts.clear(),
@@ -157,6 +170,11 @@ export async function restoreFromPayload(payload: BackupPayload): Promise<void> 
         db.localSales.clear(),
         db.localReturns.clear(),
         db.localAudit.clear(),
+        // The event corpus restarts with the snapshot; pre-snapshot event
+        // rows (payments/adjustments) must go or derived recompute would
+        // fold them into the restored corpus.
+        db.localPayments.clear(),
+        db.localAdjustments.clear(),
         // Only a v3 payload owns the counters; legacy restores keep the
         // live counter (never reset a printed-receipt sequence backwards).
         ...(normalized.meta ? [db.localMeta.clear()] : []),
@@ -167,10 +185,18 @@ export async function restoreFromPayload(payload: BackupPayload): Promise<void> 
       await db.localReturns.bulkAdd(normalized.returns);
       await db.localAudit.bulkAdd(normalized.audit);
       if (normalized.meta) {
-        await db.localMeta.bulkPut(normalized.meta);
+        await db.localMeta.bulkPut(
+          normalized.meta.filter(m => m.key !== DEVICE_SEQ_KEY && m.key !== SYNC_PUSH_ACK_KEY && m.key !== SYNC_PULL_SEQ_KEY),
+        );
       }
+      if (liveSyncKeys.device_seq !== undefined) await db.localMeta.put({ key: DEVICE_SEQ_KEY, value: liveSyncKeys.device_seq });
+      if (liveSyncKeys.push_ack !== undefined) await db.localMeta.put({ key: SYNC_PUSH_ACK_KEY, value: liveSyncKeys.push_ack });
+      if (liveSyncKeys.pull_seq !== undefined) await db.localMeta.put({ key: SYNC_PULL_SEQ_KEY, value: liveSyncKeys.pull_seq });
     }
   );
+  // Snapshot rows carry the pre-v7 shape (no envelope / opening stock on old
+  // backups): rebuild envelopes, openings, and legacy-balance events.
+  await ensureSyncEnvelopes();
 }
 
 const LAST_BACKUP_RUN_KEY = 'wakulima-last-rolling-backup';
