@@ -4,6 +4,42 @@
 **Date:** 2026-10-18
 **Depends on:** ADR-001 (Option A fleet, staged backup topology)
 
+## Implementation notes (2.2c drill, 2026-10-20)
+
+The two-till fixture drill lives INSIDE the real-Postgres sync suite
+(`server/sync/sync.test.mjs`): each till is a full client — its own
+fake-indexeddb factory (Dexie's shared static `dependencies` are repointed
+at it per boot: dexie is an externalized module whose captured deps are
+NOT re-evaluated by `vi.resetModules()`), its own storage shim, and its own
+module-instance identity — and the two tills push/pull over real HTTP.
+What the drill proved (and what it caught):
+
+- **§8.3 acceptance, all asserted end-to-end:** both offline full-shelf
+  sales merge on both tills (seller attribution visible), derived stock =
+  −8 on both with `stock_sold_through` audited; the same price edited on
+  two tills converges to the LWW winner everywhere with a `sync_lww_override`
+  audit on the till that held the loser; credit sales that pass every till's
+  isolated limit check only over-commit AFTER the merge →
+  `credit_over_committed` (new: recompute returns `over_limit`, pull-apply
+  audits it — §6's "audit flags" was previously claimed but untested and
+  unimplemented); convergence stabilizes at zero pulled/pushed traffic.
+- **Bugs the drill exposed (fixed at the root, not around):**
+  1. sync-client's `STORE_ID` — a real `ReferenceError` on the first foreign
+     product pull, surviving because the CI "Typecheck" step (`npx tsc
+     --noEmit` on the root tsconfig with `files: []`) checks ZERO files.
+     ⚠️ The typecheck gate is currently VACUOUS — typechecking the app
+     config directly reports pre-existing errors; making the gate real is
+     its own phase (2.2c.5 candidate).
+  2. Server typed-table final state ignored cross-device edits to the same
+     id (the same-device seq-continuity guard also dropped a second till's
+     edit silently — while tills converged via the sync_log). The upsert
+     now follows §3 LWW on `(updated_at, device_id)`; the log retains BOTH
+     versions, so convergence and audit are unchanged.
+- **Drill-local isolation hygiene:** the drill truncates the fleet tables
+  in its `beforeAll` (it runs last in the file) so a fresh till's full-
+  history bootstrap pull sees only the drill's corpus and counts stay
+  deterministic.
+
 ## Implementation notes (2.2b client build, 2026-10-20)
 
 - **§6 "outbox" made concrete:** every local write stamps its envelope AND

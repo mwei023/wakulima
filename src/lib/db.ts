@@ -595,6 +595,10 @@ function customerBalancesFromEvents(
 
 export interface RecomputeResult {
   sold_through: string[];
+  /** Customers whose derived balance exceeds their credit limit — reachable
+   *  ONLY through merges (each till refuses over-limit sales locally), so the
+   *  audit lands where the merge applied (ADR-002 §6). */
+  over_limit: string[];
   changed_products: number;
   changed_customers: number;
 }
@@ -642,12 +646,14 @@ export async function recomputeDerivedState(): Promise<RecomputeResult> {
 
     const balances = customerBalancesFromEvents(customers, sales, returns, payments);
     let changedCustomers = 0;
+    const overLimit: string[] = [];
     for (const c of customers) {
       const balance = balances.get(c.id) ?? 0;
       if (balance !== c.outstanding_balance) changedCustomers += 1;
+      if (balance > c.credit_limit) overLimit.push(c.id);
       await db.localCustomers.put({ ...c, outstanding_balance: balance });
     }
-    return { sold_through: soldThrough, changed_products: changedProducts, changed_customers: changedCustomers };
+    return { sold_through: soldThrough, over_limit: overLimit, changed_products: changedProducts, changed_customers: changedCustomers };
   });
 }
 

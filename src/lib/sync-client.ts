@@ -6,6 +6,7 @@ import {
   recomputeDerivedState,
   addAudit,
 } from './db';
+import { STORE_ID } from '@/lib/backend';
 import type { Product, Customer, Sale, CreditPayment, StockAdjustment } from '@/types';
 import type { LocalReturn } from './db';
 
@@ -353,13 +354,23 @@ export async function applyPullPage(events: SyncEvent[], watermarkBefore: number
       }
       // Recompute stock/balance over the merged event corpus — this is where
       // another till's sales/adjustments/payments actually move our numbers.
-      const { sold_through } = await recomputeDerivedState();
+      const { sold_through, over_limit } = await recomputeDerivedState();
       for (const productId of sold_through) {
         const already = (await db.localAudit.where('action').equals('stock_sold_through').toArray())
           .some(a => a.record_id === productId);
         if (already) continue;
         await addAudit('stock_sold_through', 'products', productId, {
           at: new Date().toISOString(), note: 'computed stock below zero; physical count → adjustment event required (ADR-002 §3.2)',
+        });
+      }
+      // Credit over-commit is reachable ONLY via merges (each till refuses
+      // over-limit sales locally, ADR-002 §6) — flag it where it materializes.
+      for (const customerId of over_limit) {
+        const already = (await db.localAudit.where('action').equals('credit_over_committed').toArray())
+          .some(a => a.record_id === customerId);
+        if (already) continue;
+        await addAudit('credit_over_committed', 'customers', customerId, {
+          at: new Date().toISOString(), note: 'merged balance exceeds credit limit; collect the debt (ADR-002 §6)',
         });
       }
       // The watermark advances ONLY after every apply in this transaction.

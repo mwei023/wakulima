@@ -138,8 +138,22 @@ one explicitly and write it down. Everything in Phases 3–4 assumes you chose.
       409 ack-heal, sold-through audit flag, autoSync loop (§4 triggers).
       80/80 unit + 6/6 e2e green; server sync suite 5/5 on real Postgres
       ('opening' amounts: `amount <> 0` CHECK).
-- [ ] 2.2c: two-till fixture drill (automated), then real second device
-      on the shop LAN for a shadow week.
+- [x] 2.2c drill (automated, inside the real-Postgres sync suite): TWO real
+      till clients — independent Dexie/IndexedDB universes (per-till
+      fake-indexeddb factory + Dexie.dependencies repointing), own storage
+      and module-instance sync identity — push and pull over real HTTP.
+      Story: both tills sell the full shelf offline → merge carries both
+      sales → derived stock −8 on both → `stock_sold_through` audited; the
+      same price edited on two tills resolves by LWW with the overrider
+      audited; credit legal on each till over-commits the merged balance →
+      `credit_over_committed` flagged; both stabilize at 0/0 traffic.
+      Found & fixed at the root: a real `ReferenceError` in the sync client
+      (`STORE_ID` — surviving the CI typecheck because the root tsconfig
+      placeholders `files: []` make `tsc --noEmit` a no-op) and a server
+      typed-table gap (same-id cross-device edits were silently dropped by
+      the same-device seq guard — now server-side LWW on
+      `(updated_at, device_id)`, ADR-002 §3). 85/85 unit + 6/6 e2e green.
+- [ ] 2.2c real second device: on the shop LAN for a shadow week.
 
 ### 2.1 LAN backup receiver ✅ (built 2026-10-09 — stage 1 of the staged backup)
 - [x] Zero-dependency receiver service (`server/backup-server.mjs`, README with

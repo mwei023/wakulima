@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { exec, execSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -258,5 +258,248 @@ describe('sync API against real Postgres', () => {
     expect(events).toHaveLength(2); // create + tombstone, BOTH as log versions
     expect(events[0].record.deleted_at).toBeNull();
     expect(events[1].record.deleted_at).toBe('2026-10-18T11:00:00.000Z');
+  });
+});
+
+// ======================================================================
+// 2.2c — the two-till fixture drill (ADR-002 §8.3, §3.2, §6)
+//
+// Two REAL till clients — each its own Dexie/IndexedDB universe, its own
+// storage shim and its own module-instance sync identity — run the whole
+// ADR story against the REAL server and Postgres: both sell the full shelf
+// offline, the merge must carry both sales, derived stock goes negative and
+// is audited sold-through; the same product price is edited on two tills and
+// resolved by LWW with the overrider audited; credit sales that are legal on
+// each till separately over-commit the merged balance and are flagged.
+// ======================================================================
+const DRILL_BASE = '2026-10-19T08:00:00.000Z';
+const P_ID = 'c0000000-0000-4a00-8000-000000000001';
+const C_ID = 'c0000000-0000-4a00-8000-000000000002';
+// A second product for the credit drill: the stock-oversell merges its way to
+// −8 on both tills, so the credit story needs units that still exist there.
+const P2_ID = 'c0000000-0000-4a00-8000-000000000003';
+const PRODUCT = {
+  id: P_ID, name: 'Chick Mash 50kg', category: 'Feed', unit: 'bag',
+  selling_price: 420000, cost_price: 380000, stock_quantity: 8, reorder_level: 2,
+  barcode: null, created_at: DRILL_BASE,
+};
+const PRODUCT2 = {
+  id: P2_ID, name: 'Layers Mash 70kg', category: 'Feed', unit: 'bag',
+  selling_price: 380000, cost_price: 340000, stock_quantity: 2, reorder_level: 1,
+  barcode: null, created_at: DRILL_BASE,
+};
+const CUSTOMER = {
+  id: C_ID, name: 'Grace Wanjiru', phone: '0722 000 000',
+  credit_limit: 100000, outstanding_balance: 0, created_at: DRILL_BASE,
+};
+const SALE = { quantity: 8, unit_price: PRODUCT.selling_price, total_line: PRODUCT.selling_price * 8 };
+
+function bootTill(name) {
+  return (async () => {
+    // A fresh fake-indexeddb universe per till, installed via globals BEFORE
+    // the module re-import so each Dexie instance captures its own factory.
+    vi.resetModules();
+    const fi = await import('fake-indexeddb');
+    globalThis.indexedDB = new fi.IDBFactory();
+    globalThis.IDBKeyRange = fi.IDBKeyRange;
+    const storage = new Map();
+    globalThis.localStorage = {
+      getItem: k => (storage.has(k) ? storage.get(k) : null),
+      setItem: (k, v) => storage.set(k, String(v)),
+      removeItem: k => storage.delete(k),
+      clear: () => storage.clear(),
+    };
+    // Fresh module instances: the singletons inside db.ts / sync-client.ts
+    // (Dexie handle, device uuid counter, sync config) all belong to ONE till.
+    // Dexie is an externalized module (never re-evaluated by resetModules),
+    // so its class — and its static `dependencies` captured at construction —
+    // is shared across tills: repoint it at THIS till's fresh factory just
+    // before db.ts evaluates and its OfflineDatabase captures the deps.
+    const DexieMod = await import('dexie');
+    DexieMod.Dexie.dependencies.indexedDB = globalThis.indexedDB;
+    DexieMod.Dexie.dependencies.IDBKeyRange = fi.IDBKeyRange;
+    const dbMod = await import('../../src/lib/db');
+    const scMod = await import('../../src/lib/sync-client');
+    // Mint + cache this till's device uuid NOW, while its own storage shim is
+    // the global: the mint is lazy, and a first call made after another till
+    // boots would land in the wrong shard. Fresh factories never run the v7
+    // migration, so nothing else wakes getDeviceId at open time.
+    dbMod.getDeviceId();
+    // Open while this till's factory is on the globals.
+    await dbMod.db.open();
+    return { name, dbMod, scMod, localStorage: globalThis.localStorage };
+  })();
+}
+
+function asTill(till, fn) {
+  // Sequential drill: point the global storage at the till performing the
+  // step (per-call reads like getSyncConfig/getDeviceId-hit route there).
+  globalThis.localStorage = till.localStorage;
+  return fn();
+}
+
+async function converge(order, tills) {
+  for (let round = 0; round < 6; round++) {
+    let quiet = true;
+    for (const till of order) {
+      const r = await asTill(till, () => till.scMod.syncOnce());
+      if (r.pulled !== 0 || r.pushed !== 0) quiet = false;
+    }
+    if (quiet) return round;
+  }
+  throw new Error('tills never stabilized within 6 rounds');
+}
+
+describe('two-till fixture drill (ADR-002 §8.3 / 2.2c)', () => {
+  let A = null;
+  let B = null;
+  const tills = () => [A, B];
+
+  beforeAll(async () => {
+    if (!canRun) return;
+    // A pristine fleet for the drill storyline: this describe runs LAST in the
+    // file, so the API tests above are done with their server state. Wipe it
+    // (devices included — and mint fresh tokens) so a fresh till's bootstrap
+    // pull sees nothing but the drill's own corpus, and pushed/pulled counts
+    // are deterministic instead of reflecting the API tests' leftovers.
+    await ctx.pool.query(
+      'truncate devices, products, customers, sales, sale_items, returns, payments, adjustments, audit_events, sync_log restart identity cascade',
+    );
+    const [deviceA, deviceB] = [await mintDevice('drill-till-A'), await mintDevice('drill-till-B')];
+    A = await bootTill('guardian-main');
+    B = await bootTill('guardian-annex');
+    // device ids must differ — per-till storage mints separate uuids
+    expect(A.dbMod.getDeviceId()).not.toBe(B.dbMod.getDeviceId());
+
+    // Bootstrap: till A holds the shared corpus and pushes it; till B pulls
+    // it (real HTTP both ways) — the normal fleet bootstrap.
+    await asTill(A, async () => {
+      await A.dbMod.createSyncedRecord('products', { ...PRODUCT });
+      await A.dbMod.createSyncedRecord('products', { ...PRODUCT2 });
+      await A.dbMod.createSyncedRecord('customers', { ...CUSTOMER });
+    });    await asTill(A, () => A.scMod.configureSync(ctx.baseUrl, deviceA.token));
+    await asTill(B, () => B.scMod.configureSync(ctx.baseUrl, deviceB.token));
+    const bootPush = await asTill(A, () => A.scMod.syncOnce());
+    expect(bootPush.pushed).toBe(3);
+    expect(bootPush.pulled).toBe(0);
+    const bootPull = await asTill(B, () => B.scMod.syncOnce());
+    expect(bootPull.pulled).toBe(3);
+    const mirrored = await asTill(B, () => B.dbMod.db.localProducts.get(P_ID));
+    expect(mirrored.stock_quantity).toBe(8);
+  });
+
+  it.skipIf(!canRun)('both tills can sell the whole shelf offline (the divergence starts)', async () => {
+    if (!A) return;
+    for (const till of tills()) {
+      await asTill(till, async () => {
+        const saleId = await till.dbMod.processLocalSale('main-store', null, 'cash', [
+          { product_id: P_ID, product_name: PRODUCT.name, ...SALE },
+        ], SALE.total_line);
+        expect(saleId).toEqual(expect.any(String));
+        const after = await till.dbMod.db.localProducts.get(P_ID);
+        expect(after.stock_quantity).toBe(0); // legal locally... on BOTH tills
+      });
+    }
+  });
+
+  it.skipIf(!canRun)('offline divergence merges: both sales arrive and stock flags sold-through', async () => {
+    if (!A) return;
+    await converge(tills(), tills());
+
+    for (const till of tills()) {
+      await asTill(till, async () => {
+        // Audit exactly shows both sales — mine AND the other till's — with
+        // the seller attribution distinguishing them.
+        const sales = await till.dbMod.db.localSales.toArray();
+        expect(sales).toHaveLength(2);
+        expect(new Set(sales.map(s => s.device_id)).size).toBe(2);
+        for (const s of sales) expect(s.items).toHaveLength(1);
+
+        // Derived stock over the merged corpus: 8 − 16 = −8 → flagged.
+        const product = await till.dbMod.db.localProducts.get(P_ID);
+        expect(product.stock_quantity).toBe(-8);
+        const flags = await till.dbMod.db.localAudit.where('action').equals('stock_sold_through').toArray();
+        expect(flags.some(a => a.record_id === P_ID)).toBe(true);
+      });
+    }
+
+    const { rows: saleRows } = await ctx.pool.query(
+      'select device_id, total_amount from sales',
+    );
+    const drillSales = saleRows.filter(r => Number(r.total_amount) === SALE.total_line);
+    expect(drillSales).toHaveLength(2);
+    expect(new Set(drillSales.map(r => String(r.device_id))).size).toBe(2);
+    const { rows: itemRows } = await ctx.pool.query('select count(*)::int as n from sale_items where product_id = $1', [P_ID]);
+    expect(itemRows[0].n).toBe(2);
+  });
+
+  it.skipIf(!canRun)('the same price edited on two tills resolves by LWW with the loser audited', async () => {
+    if (!A) return;
+    // Offline edits with deterministic clocks: A twice, B last (later sleep
+    // ⇒ strictly newer updated_at ⇒ B must win on every till).
+    await asTill(A, () => A.dbMod.updateSyncedRecord('products', P_ID, { selling_price: 440000 }));
+    await new Promise(r => setTimeout(r, 150));
+    const aFinal = await asTill(A, () => A.dbMod.updateSyncedRecord('products', P_ID, { selling_price: 450000 }));
+    await new Promise(r => setTimeout(r, 150));
+    const bFinal = await asTill(B, () => B.dbMod.updateSyncedRecord('products', P_ID, { selling_price: 499000 }));
+    expect(bFinal.updated_at > aFinal.updated_at).toBe(true); // LWW winner is unambiguous
+
+    await converge(tills(), tills());
+
+    for (const till of tills()) {
+      await asTill(till, async () => {
+        const product = await till.dbMod.db.localProducts.get(P_ID);
+        expect(product.selling_price).toBe(499000);
+      });
+    }
+    // A hung on to its own 450000 edit until B's version arrived — the
+    // override must be audited there, not silently swallowed.
+    const overrides = await asTill(A, () =>
+      A.dbMod.db.localAudit.where('action').equals('sync_lww_override').toArray());
+    expect(overrides.filter(a => a.record_id === P_ID)).toHaveLength(1);
+
+    // Also: the double-edit-before-first-push continuity (§6) — BOTH of A's
+    // versions reached the log, no silent renumber.
+    const { rows } = await ctx.pool.query(
+      'select record->>\'selling_price\' as price from sync_log where table_name = $1 and record->>\'id\' = $2 order by seq',
+      ['products', P_ID],
+    );
+    expect(rows.map(r => r.price)).toEqual(['420000', '440000', '450000', '499000']);
+    const { rows: typed } = await ctx.pool.query('select selling_price from products where id = $1', [P_ID]);
+    expect(Number(typed[0].selling_price)).toBe(499000); // typed final state IS the LWW winner
+  });
+
+  it.skipIf(!canRun)('credit over-commit appears only after the merge and is flagged once per till', async () => {
+    if (!A) return;
+    // Each till refuses over-limit credit sales locally; 60000 is legal in
+    // EVERY isolated view of the 100000 limit. Only the merged corpus (120000)
+    // exceeds it — exactly the §6 accepted consequence.
+    for (const till of tills()) {
+      await asTill(till, async () => {
+        const saleId = await till.dbMod.processLocalSale('main-store', C_ID, 'credit', [
+          { product_id: P2_ID, product_name: PRODUCT2.name, quantity: 1, unit_price: 60000, total_line: 60000 },
+        ], 60000);
+        expect(saleId).toEqual(expect.any(String));
+      });
+    }
+
+    await converge(tills(), tills());
+
+    for (const till of tills()) {
+      await asTill(till, async () => {
+        const customer = await till.dbMod.db.localCustomers.get(C_ID);
+        expect(customer.outstanding_balance).toBe(120000); // 60000 + 60000, derived over events
+        const flags = await till.dbMod.db.localAudit.where('action').equals('credit_over_committed').toArray();
+        expect(flags.some(a => a.record_id === C_ID)).toBe(true);
+      });
+    }
+  });
+
+  it.skipIf(!canRun)('the drill stabilizes: nothing left to pull or push on either till', async () => {
+    if (!A) return;
+    for (const till of tills()) {
+      const r = await asTill(till, () => till.scMod.syncOnce());
+      expect(r).toEqual({ pulled: 0, pushed: 0 });
+    }
   });
 });

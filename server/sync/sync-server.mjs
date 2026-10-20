@@ -176,17 +176,20 @@ export function makeSyncServer(pool) {
               const cols = COLUMNS[table];
               const values = normalizeRow(table, raw, dev.id);
               const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
-              // Upsert on the row uuid: a re-pushed LWW version (same id, new
-              // device_seq) must overwrite the older version, while a replay
-              // of an already-stored row is a no-op. The WHERE clause makes
-              // cross-device uuid collisions silent no-ops — a protocol
-              // breach surface the client audit will surface; never overwrite
-              // another device's row.
+              // Upsert on the row uuid: the final typed state follows LWW
+              // (ADR-002 §3) — same-device continuity by seq (an older replay
+              // can never regress the row), and a DIFFERENT device that edited
+              // the same shared id (pulled-then-edited row) lands when its
+              // updated_at is newer, ties broken by device uuid. The sync_log
+              // append below records BOTH versions either way, so every till
+              // converges and a cross-device uuid collision stays auditable.
               const sets = cols.filter(c => c !== 'id').map(c => `${c} = excluded.${c}`).join(', ');
               await client.query(
                 `insert into ${table} (${cols.join(',')}) values (${placeholders})
                  on conflict (id) do update set ${sets}
-                 where ${table}.device_id = excluded.device_id and excluded.device_seq > ${table}.device_seq`,
+                 where (${table}.device_id = excluded.device_id and excluded.device_seq > ${table}.device_seq)
+                    or excluded.updated_at > ${table}.updated_at
+                    or (excluded.updated_at = ${table}.updated_at and excluded.device_id > ${table}.device_id)`,
                 cols.map(c => values[c])
               );
               // Append the version to the ingest log — the pull spine. New
