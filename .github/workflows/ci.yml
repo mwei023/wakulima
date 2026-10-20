@@ -8,6 +8,28 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+
+    # Phase 2.2: sync API tests run against a real Postgres (ADR-002).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: wakulima
+          POSTGRES_USER: wakulima
+          POSTGRES_PASSWORD: wakulima
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wakulima"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://wakulima:wakulima@127.0.0.1:5432/wakulima
+      PGUSER: wakulima
+      PGPASSWORD: wakulima
+
     steps:
       - uses: actions/checkout@v4
 

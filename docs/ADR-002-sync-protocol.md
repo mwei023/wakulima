@@ -1,8 +1,39 @@
 # ADR-002: Sync protocol — cursors, additive deltas, staged Postgres (Phase 2.2a)
 
-**Status:** Proposed — owner review requested before any backend code (2.2b)
+**Status:** Approved (owner, §9) · implemented in 2.2b stage 1
 **Date:** 2026-10-18
 **Depends on:** ADR-001 (Option A fleet, staged backup topology)
+
+## Implementation notes (2.2b server build, 2026-10-18)
+
+- **§4 pull cursor:** implemented as a **global append-only ingest log**
+  (`sync_log`: one row per accepted record version, global mono `seq`) —
+  exactly the design originally drafted here. A per-table-final-state cursor
+  was tried first and **rejected with proof**: an LWW overwrite updates the
+  typed row in place, so a till whose watermark already passed that row would
+  never re-see it and could silently diverge. New version ⇒ new log seq ⇒
+  every till converges. Typed tables hold final state (FK integrity,
+  accountant queries); `sale_items` gained an attribution-only `device_id` so
+  a till's own writes filter out of pulls.
+- **Idempotency/LWW upsert:** typed rows upsert on the record uuid
+  (`on conflict (id) do update … where device matches and new seq > stored`);
+  replays and stale seqs are no-ops. The `(device_id, device_seq)` unique
+  constraint remains the transport idempotency key.
+- **Cross-device uuid collisions** (protocol breach) are silent no-ops at the
+  server — detectable via audit, never overwriting another till's row.
+- **bigint note:** pg returns bigint as JS strings; the server coerces
+  watermarks to numbers (`acked + 1` on a string would concat) and hands
+  money/seqs to clients as JSON numbers (< 2^53 by construction).
+- **Server surface:** `POST /devices` (token mint, shown once, stored hashed),
+  `POST /sync/push` (continuity-checked, transactional; seq gap → 409),
+  `GET /sync/pull?since=N` (paged, drained flag), `GET /healthz`.
+  `docker-compose.yml` = postgres + sync API + 2.1 backup receiver on one
+  shop PC; tokens live in the local `.env` (see `.env.example`).
+- **Integration tests** (`server/sync/sync.test.mjs`) run against a REAL
+  Postgres — ephemeral docker locally, a CI service on GitHub Actions; skip
+  loudly (never fake-pass) when neither exists. Two server bugs were caught
+  only by these tests and fixed at the root (string bigint watermark; missing
+  sale_items attribution).
 
 ## 0. What is and is NOT being built
 

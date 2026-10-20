@@ -1,0 +1,56 @@
+# Wakulima stage-1 backend (ADR-002 §5.1): runs on the shop's always-on PC,
+# on the LAN, with zero internet. `docker compose up -d` is the whole install.
+# Stage 2 (VPS) reuses the same compose — only the host changes.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wakulima
+      POSTGRES_USER: wakulima
+      # Supplied via .env next to this file on the shop machine (never committed).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Fresh database goes straight onto the ADR-002 §7 schema.
+      - ./server/sync/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wakulima -d wakulima"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  sync-api:
+    build:
+      context: .
+      dockerfile: server/sync/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://wakulima:${POSTGRES_PASSWORD:?}@postgres:5432/wakulima
+      # Mint device tokens with: curl -X POST -H "x-admin-token: $ADMIN_TOKEN" ...
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env}
+      PORT: "8788"
+    ports:
+      - "8788:8788"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # The 2.1 snapshot backup receiver rides the same box (one PC, two boring services).
+  backup-receiver:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: "8787"
+      BACKUP_TOKEN: ${BACKUP_TOKEN:?set BACKUP_TOKEN in .env}
+      BACKUP_DIR: /data/backups
+    volumes:
+      - backups:/data/backups
+    ports:
+      - "8787:8787"
+
+volumes:
+  pgdata:
+  backups:
